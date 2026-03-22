@@ -285,6 +285,9 @@ _load_config() {
   #     enabled: true
   local current_guard=""
   while IFS= read -r line; do
+    # Strip carriage return (CRLF on Windows)
+    line="${line%$'\r'}"
+
     local trimmed="${line#"${line%%[![:space:]]*}"}"  # trim leading whitespace
     local indent="${line%%[! ]*}"  # leading spaces
 

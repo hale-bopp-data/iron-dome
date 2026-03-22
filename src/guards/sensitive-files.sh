@@ -5,6 +5,10 @@
 
 guard_sensitive_files() {
   local file="$1"
+
+  # Check whitelist
+  if _is_whitelisted "sensitive_files" "$file"; then return 0; fi
+
   local basename
   basename=$(basename "$file")
 

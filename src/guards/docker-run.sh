@@ -5,6 +5,9 @@
 guard_docker_run() {
   local file="$1"
 
+  # Check whitelist
+  if _is_whitelisted "docker_run" "$file"; then return 0; fi
+
   # Only check script files
   if ! [[ "$file" =~ \.(sh|bash|ps1|psm1|py|yml|yaml)$ ]]; then
     return 0

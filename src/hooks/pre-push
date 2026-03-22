@@ -36,12 +36,12 @@ _load_guards
 echo "Iron Dome v${IRON_DOME_VERSION}: Pre-Push Checks..."
 
 # --- Layer 0: Branch Policy ---
-if type guard_branch_policy &>/dev/null; then
+if _is_guard_enabled "branch_policy" && type guard_branch_policy &>/dev/null; then
   guard_branch_policy || exit 1
 fi
 
 # --- Layer 1: Semaphore ---
-if type guard_semaphore &>/dev/null; then
+if _is_guard_enabled "semaphore" && type guard_semaphore &>/dev/null; then
   guard_semaphore
   sem_result=$?
   if [[ $sem_result -eq 1 ]]; then
@@ -50,7 +50,7 @@ if type guard_semaphore &>/dev/null; then
 fi
 
 # --- Layer 2: Orphan Guard ---
-if type guard_orphan &>/dev/null; then
+if _is_guard_enabled "orphan" && type guard_orphan &>/dev/null; then
   guard_orphan || exit 1
 fi
 

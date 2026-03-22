@@ -9,6 +9,9 @@ guard_secrets() {
   local file="$1"
   local found=0
 
+  # Check whitelist
+  if _is_whitelisted "secrets" "$file"; then return 0; fi
+
   for entry in "${IRON_DOME_SECRET_PATTERNS[@]}"; do
     local name="${entry%%|||*}"
     local pattern="${entry##*|||}"

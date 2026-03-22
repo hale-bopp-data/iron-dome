@@ -8,6 +8,9 @@ guard_large_file() {
 
   [[ ! -f "$file" ]] && return 0
 
+  # Check whitelist
+  if _is_whitelisted "large_file" "$file"; then return 0; fi
+
   local size_bytes
   size_bytes=$(wc -c < "$file" 2>/dev/null || echo 0)
   local size_kb=$((size_bytes / 1024))

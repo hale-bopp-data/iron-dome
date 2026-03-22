@@ -327,6 +327,110 @@ _load_config() {
   fi
 }
 
+# --- Whitelist (per-file exceptions with mandatory reason) ---
+# Format in iron-dome.yml:
+#   whitelist:
+#     - file: "tests/fixtures/fake-creds.json"
+#       guard: sensitive_files
+#       reason: "Test fixture, no real credentials"
+#
+# Parsed as: IRON_DOME_WHITELIST[guard|||file_glob] = reason
+
+declare -A IRON_DOME_WHITELIST
+
+_load_whitelist() {
+  local config_file="$1"
+  [[ -z "$config_file" ]] && return 0
+  [[ ! -f "$config_file" ]] && return 0
+
+  local in_whitelist=false
+  local current_file="" current_guard="" current_reason=""
+
+  while IFS= read -r line; do
+    line="${line%$'\r'}"
+    local trimmed="${line#"${line%%[![:space:]]*}"}"
+
+    if [[ "$trimmed" == "whitelist:"* ]]; then
+      in_whitelist=true
+      continue
+    fi
+
+    if ! $in_whitelist; then continue; fi
+
+    # New section at same or lower indent = end of whitelist
+    local indent="${line%%[! ]*}"
+    if [[ ${#indent} -eq 0 ]] && [[ -n "$trimmed" ]] && [[ ! "$trimmed" =~ ^# ]] && [[ "$trimmed" != "[]" ]]; then
+      # Save last entry
+      if [[ -n "$current_file" ]] && [[ -n "$current_guard" ]]; then
+        IRON_DOME_WHITELIST["${current_guard}|||${current_file}"]="${current_reason:-no reason}"
+      fi
+      in_whitelist=false
+      continue
+    fi
+
+    # New entry starts with "- file:"
+    if [[ "$trimmed" =~ ^-[[:space:]]*file:[[:space:]]*\"(.+)\" ]] || [[ "$trimmed" =~ ^-[[:space:]]*file:[[:space:]]*(.+) ]]; then
+      # Save previous entry
+      if [[ -n "$current_file" ]] && [[ -n "$current_guard" ]]; then
+        IRON_DOME_WHITELIST["${current_guard}|||${current_file}"]="${current_reason:-no reason}"
+      fi
+      current_file="${BASH_REMATCH[1]}"
+      current_file="${current_file%\"}"  # strip trailing quote
+      current_guard=""
+      current_reason=""
+      continue
+    fi
+
+    if [[ "$trimmed" =~ ^guard:[[:space:]]*(.+) ]]; then
+      current_guard="${BASH_REMATCH[1]}"
+      current_guard="${current_guard%\"}"
+      current_guard="${current_guard#\"}"
+      continue
+    fi
+
+    if [[ "$trimmed" =~ ^reason:[[:space:]]*\"(.+)\" ]] || [[ "$trimmed" =~ ^reason:[[:space:]]*(.+) ]]; then
+      current_reason="${BASH_REMATCH[1]}"
+      current_reason="${current_reason%\"}"
+      continue
+    fi
+
+    if [[ "$trimmed" =~ ^pattern:[[:space:]]*\"(.+)\" ]] || [[ "$trimmed" =~ ^pattern:[[:space:]]*(.+) ]]; then
+      # pattern narrows the whitelist to a specific secret pattern name
+      # stored as guard|||file|||pattern
+      local pat="${BASH_REMATCH[1]}"
+      pat="${pat%\"}"
+      current_guard="${current_guard}|||${pat}"
+      continue
+    fi
+  done < "$config_file"
+
+  # Save last entry
+  if [[ -n "$current_file" ]] && [[ -n "$current_guard" ]]; then
+    IRON_DOME_WHITELIST["${current_guard}|||${current_file}"]="${current_reason:-no reason}"
+  fi
+}
+
+_is_whitelisted() {
+  local guard="$1"
+  local file="$2"
+
+  for key in "${!IRON_DOME_WHITELIST[@]}"; do
+    local wl_guard="${key%%|||*}"
+    local wl_file="${key##*|||}"
+
+    if [[ "$wl_guard" == "$guard" ]] || [[ "$wl_guard" == *"$guard"* ]]; then
+      # Check file glob match
+      if [[ "$file" == $wl_file ]] || [[ "$(basename "$file")" == $wl_file ]]; then
+        local reason="${IRON_DOME_WHITELIST[$key]}"
+        echo "  WHITELISTED: $file ($guard) — $reason"
+        _guard_log "$guard" "whitelisted" "$file: $reason"
+        return 0
+      fi
+    fi
+  done
+  return 1
+}
+
 # --- Guard enabled checker ---
 _is_guard_enabled() {
   local guard_name="$1"
@@ -362,4 +466,13 @@ _load_guards() {
 
   # Load config after guards (config decides which ones run)
   _load_config
+
+  # Load whitelist from config
+  local repo_root
+  repo_root=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
+  if [[ -f "${repo_root}/iron-dome.yml" ]]; then
+    _load_whitelist "${repo_root}/iron-dome.yml"
+  elif [[ -f "$(_iron_dome_home)/iron-dome.yml" ]]; then
+    _load_whitelist "$(_iron_dome_home)/iron-dome.yml"
+  fi
 }

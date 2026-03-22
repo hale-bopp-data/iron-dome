@@ -249,6 +249,42 @@ exclusions:
   max_file_size_kb: 512  # Skip scanning files larger than this
 
 # =============================================================================
+# WHITELIST (per-file / per-pattern exceptions with mandatory reason)
+# =============================================================================
+# Every exception MUST have a reason. No silent bypasses.
+# This is auditable: "why was this allowed?"
+#
+# Each entry specifies:
+#   - file: glob pattern for the file(s)
+#   - guard: which guard to skip (secrets, sensitive_files, large_file, docker_run, etc.)
+#   - pattern: (optional) specific secret pattern name to skip
+#   - reason: (REQUIRED) why this exception exists
+#   - approved_by: (optional) who approved the exception
+#   - expires: (optional) ISO date — exception auto-reverts after this date
+
+whitelist: []
+  # Examples:
+  # - file: "tests/fixtures/fake-credentials.json"
+  #   guard: sensitive_files
+  #   reason: "Test fixture with fake data, no real credentials"
+  #   approved_by: "evgenia"
+  #
+  # - file: "docs/examples/api-demo.js"
+  #   guard: secrets
+  #   pattern: "Generic API Key Assignment"
+  #   reason: "Documentation example with placeholder key 'your_api_key_here'"
+  #
+  # - file: "scripts/legacy-deploy.sh"
+  #   guard: docker_run
+  #   reason: "Legacy script pending migration to compose (tracked in PBI #435)"
+  #   expires: "2026-06-01"
+  #
+  # - file: "data/large-seed.sql"
+  #   guard: large_file
+  #   reason: "Database seed file, 3MB, required for local dev setup"
+  #   approved_by: "evgenia"
+
+# =============================================================================
 # TELEMETRY
 # =============================================================================
 

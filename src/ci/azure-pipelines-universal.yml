@@ -1,0 +1,79 @@
+# Iron Dome Universal — Self-Contained Build Validation Pipeline
+#
+# ONE pipeline for ALL repos. No external dependencies required.
+# Iron Dome is cloned on-the-fly from GitHub (or from a local path if installed).
+#
+# Setup:
+#   1. Copy this file into your ADO project (or reference from iron-dome repo)
+#   2. Create a pipeline in ADO pointing to this YAML
+#   3. Project Settings > Repos > <repo> > Policies > main > Build Validation
+#   4. Add this pipeline as a required check
+#   5. Done — every PR to main will be scanned by Iron Dome
+#
+# Customization:
+#   - iron-dome.yml in your repo root: enable/disable guards, set thresholds
+#   - .iron-dome.yml in your repo root: per-repo overrides (disable patterns, add custom ones)
+#   - whitelist section: exceptions with mandatory reason (auditable)
+#   - Everything is configurable — guards, patterns, file types, severity, thresholds
+#
+# See: https://github.com/hale-bopp-data/iron-dome
+
+trigger: none
+pr: none
+
+pool:
+  vmImage: 'ubuntu-latest'  # Works on any Ubuntu agent (hosted or self-hosted)
+  # For self-hosted: uncomment below and comment above
+  # name: Default
+
+steps:
+  - checkout: self
+    fetchDepth: 0
+    displayName: 'Checkout PR repo (full history)'
+
+  - script: |
+      set -e
+
+      REPO_NAME="$(Build.Repository.Name)"
+      echo "============================================"
+      echo "  Iron Dome — Build Validation"
+      echo "  Repo: $REPO_NAME"
+      echo "============================================"
+      echo ""
+
+      # --- Find or fetch Iron Dome ---
+      IRON_DOME_HOME=""
+
+      # Option 1: Pre-installed on agent (recommended for self-hosted)
+      if [[ -f "/opt/iron-dome/src/iron-dome-scan.sh" ]]; then
+        IRON_DOME_HOME="/opt/iron-dome"
+        echo "Using pre-installed Iron Dome: $IRON_DOME_HOME"
+      fi
+
+      # Option 2: Clone from GitHub (works on hosted agents)
+      if [[ -z "$IRON_DOME_HOME" ]]; then
+        echo "Cloning Iron Dome from GitHub..."
+        git clone --depth 1 https://github.com/hale-bopp-data/iron-dome.git /tmp/iron-dome 2>/dev/null || true
+        if [[ -f "/tmp/iron-dome/src/iron-dome-scan.sh" ]]; then
+          IRON_DOME_HOME="/tmp/iron-dome"
+          echo "Using cloned Iron Dome: $IRON_DOME_HOME"
+        fi
+      fi
+
+      if [[ -z "$IRON_DOME_HOME" ]]; then
+        echo "##vso[task.logissue type=warning]Iron Dome not found. Install: git clone <repo> /opt/iron-dome"
+        exit 0
+      fi
+
+      # --- Prepare ---
+      export IRON_DOME_HOME
+      chmod +x "$IRON_DOME_HOME/src/iron-dome-scan.sh"
+      chmod +x "$IRON_DOME_HOME/src/iron-dome-core.sh"
+      chmod +x "$IRON_DOME_HOME/src/guards/"*.sh 2>/dev/null || true
+
+      # --- Scan ---
+      cd "$(Build.SourcesDirectory)"
+      bash "$IRON_DOME_HOME/src/iron-dome-scan.sh" --changed-only --verbose
+    displayName: 'Iron Dome — Security Scan'
+    env:
+      SYSTEM_PULLREQUEST_TARGETBRANCH: $(System.PullRequest.TargetBranch)

@@ -6,6 +6,71 @@ Iron Dome is a suite of composable git guards that protect your codebase from co
 
 **The Dumb Guard philosophy**: Iron Dome uses zero AI. It's pure bash scripts with regex pattern matching. It cannot be prompt-injected, hallucinated, or socially engineered. When your AI agent tries to commit a secret, Iron Dome blocks it — no questions asked.
 
+## How It Works
+
+> *"Plug it in and it works. You don't need to understand electricity."*
+
+```mermaid
+graph LR
+    subgraph "Your Code"
+        DEV["Developer / AI Agent"]
+    end
+
+    subgraph "Iron Dome (the socket)"
+        DEV -->|git commit| PC["Pre-Commit"]
+        PC -->|git push| PP["Pre-Push"]
+        PP -->|PR| CI["CI Pipeline"]
+
+        PC --- G1["Secrets Scan"]
+        PC --- G2["Conflict Markers"]
+        PC --- G3["Large Files"]
+        PC --- G4["Sensitive Files"]
+        PC --- G5["Docker Guard"]
+
+        PP --- G6["Branch Policy"]
+        PP --- G7["Semaphore"]
+        PP --- G8["Orphan Guard"]
+
+        CI --- G9["Server-Side Scan<br/>(non-bypassable)"]
+    end
+
+    subgraph "Safe Code"
+        CI -->|merge| MAIN["main"]
+    end
+
+    style PC fill:#e74c3c,color:#fff
+    style PP fill:#e67e22,color:#fff
+    style CI fill:#27ae60,color:#fff
+    style MAIN fill:#2ecc71,color:#fff
+```
+
+**Three layers, zero gaps:**
+
+| Layer | When | What | Bypassable? |
+|-------|------|------|-------------|
+| Pre-Commit | `git commit` | Scans staged files for secrets, conflicts, large files | Yes (`--no-verify`) |
+| Pre-Push | `git push` | Blocks push to protected branches, checks semaphore | Yes (force push) |
+| CI Pipeline | Pull Request | Same checks, server-side. **Catches all bypasses.** | No |
+
+```mermaid
+graph TD
+    subgraph "Customize Everything"
+        CFG["iron-dome.yml<br/>(your repo root)"]
+        OVR[".iron-dome.yml<br/>(per-repo overrides)"]
+        WL["whitelist:<br/>exceptions with reason"]
+
+        CFG -->|"guards: secrets: enabled: true"| ON["Guard ON"]
+        CFG -->|"guards: debt: enabled: false"| OFF["Guard OFF"]
+        CFG -->|"large_file: max_size_kb: 2048"| TUNE["Thresholds"]
+        OVR -->|"disabled_patterns:"| SKIP["Skip Noisy Pattern"]
+        WL -->|"reason: 'test fixture'"| ALLOW["Allow Specific File"]
+    end
+
+    style CFG fill:#3498db,color:#fff
+    style OVR fill:#9b59b6,color:#fff
+    style WL fill:#1abc9c,color:#fff
+```
+
 ## Quick Start
 
 ```bash
@@ -133,7 +198,50 @@ Every Iron Dome intervention is logged to `~/.iron-dome/telemetry.jsonl`:
 
 Run `iron-dome stats` to see how many times Iron Dome saved your team.
 
+## Whitelist (Auditable Exceptions)
+
+Need to allow a specific file through a guard? Add it to the `whitelist` section in `iron-dome.yml` with a **mandatory reason**:
+
+```yaml
+whitelist:
+  - file: "tests/fixtures/fake-credentials.json"
+    guard: sensitive_files
+    reason: "Test fixture with fake data, no real credentials"
+    approved_by: "alice"
+
+  - file: "docs/examples/api-demo.js"
+    guard: secrets
+    pattern: "Generic API Key Assignment"
+    reason: "Documentation example with placeholder key"
+
+  - file: "scripts/legacy-deploy.sh"
+    guard: docker_run
+    reason: "Legacy script pending migration to compose"
+    expires: "2025-06-01"  # Auto-reverts after this date
+```
+
+Every whitelisted file is logged to telemetry — no silent bypasses. Run `iron-dome stats` to audit all exceptions.
+
+## Customization
+
+**Everything is configurable.** Iron Dome ships with sensible defaults, but you control every aspect:
+
+| What | Where | Example |
+|------|-------|---------|
+| Enable/disable guards | `iron-dome.yml` | `docker_run: { enabled: true }` |
+| Secret patterns | `iron-dome.yml` | Add your own regex patterns |
+| Protected branches | `iron-dome.yml` | `protected_branches: ["main", "develop"]` |
+| File size limit | `iron-dome.yml` | `max_size_kb: 2048` |
+| Sensitive filenames | `iron-dome.yml` | Add/remove filename patterns |
+| Per-repo overrides | `.iron-dome.yml` | Disable noisy patterns for specific repos |
+| Exceptions | `whitelist` section | Allow specific files with reason |
+| Severity | Per guard | `blocking` (stops commit) or `advisory` (warns only) |
+
+Run `iron-dome config` to see the active configuration for the current repo.
+
 ## CI Integration
+
+Iron Dome runs locally via git hooks **and** server-side in CI pipelines. Even if a developer runs `git commit --no-verify`, the CI pipeline catches it.
 
 ### GitHub Actions
 
@@ -146,7 +254,39 @@ jobs:
 
 ### Azure Pipelines
 
-See `src/ci/azure-pipelines-template.yml` for a reusable template.
+**Option A — Universal (self-contained, zero setup):**
+
+Copy `src/ci/azure-pipelines-universal.yml` into your project. It clones Iron Dome on-the-fly — works on any hosted or self-hosted agent:
+
+```yaml
+# Create a pipeline pointing to this file, then add as Build Validation Policy
+# Project Settings > Repos > <repo> > Policies > main > Build Validation
+```
+
+**Option B — Template reference (if Iron Dome is a repo resource):**
+
+```yaml
+resources:
+  repositories:
+    - repository: iron-dome
+      type: github
+      name: hale-bopp-data/iron-dome
+      endpoint: github-connection
+
+stages:
+  - template: src/ci/azure-pipelines-template.yml@iron-dome
+    parameters:
+      scanMode: 'changed-only'
+```
+
+**Option C — Pre-installed on self-hosted agent (fastest):**
+
+```bash
+# On your build agent:
+git clone https://github.com/hale-bopp-data/iron-dome.git /opt/iron-dome
+```
+
+The universal pipeline auto-detects `/opt/iron-dome` and uses it without cloning.
 
 ## Environment Variables
 

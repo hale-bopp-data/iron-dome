@@ -1,0 +1,82 @@
+# Iron Dome — Azure Pipelines Build Validation Template
+#
+# ONE pipeline for ALL repos. Configure as Build Validation Policy
+# on protected branches (main, develop) in ADO Project Settings.
+#
+# Setup (one-time):
+#   1. Create pipeline in ADO pointing to this YAML
+#   2. Project Settings > Repos > <repo> > Policies > main > Build Validation
+#   3. Add this pipeline as required check
+#
+# Usage as template reference:
+#
+#   resources:
+#     repositories:
+#       - repository: iron-dome
+#         type: github
+#         name: hale-bopp-data/iron-dome
+#         endpoint: github-connection
+#         ref: refs/heads/main
+#
+#   stages:
+#     - template: src/ci/azure-pipelines-template.yml@iron-dome
+#       parameters:
+#         scanMode: 'changed-only'
+
+parameters:
+  - name: scanMode
+    type: string
+    default: 'changed-only'
+    values:
+      - changed-only
+      - all
+
+stages:
+  - stage: IronDome
+    displayName: 'Iron Dome — Security Scan'
+    jobs:
+      - job: Scan
+        displayName: 'Secrets + Policy Scan'
+        pool:
+          name: Default
+        steps:
+          - checkout: self
+            fetchDepth: 0
+            displayName: 'Checkout (full history for diff)'
+
+          - checkout: iron-dome
+            fetchDepth: 1
+            displayName: 'Checkout Iron Dome'
+
+          - script: |
+              set -e
+              echo "============================================"
+              echo "  Iron Dome — Build Validation"
+              echo "  Repo: $(Build.Repository.Name)"
+              echo "  Mode: ${{ parameters.scanMode }}"
+              echo "============================================"
+
+              IRON_DOME_DIR="$(Build.SourcesDirectory)/iron-dome"
+              SCANNER="$IRON_DOME_DIR/src/iron-dome-scan.sh"
+
+              if [[ ! -f "$SCANNER" ]]; then
+                echo "##vso[task.logissue type=warning]Iron Dome scanner not found"
+                exit 0
+              fi
+
+              chmod +x "$SCANNER"
+              chmod +x "$IRON_DOME_DIR/src/iron-dome-core.sh"
+              chmod +x "$IRON_DOME_DIR/src/guards/"*.sh
+
+              export IRON_DOME_HOME="$IRON_DOME_DIR"
+              cd "$(Build.SourcesDirectory)/$(Build.Repository.Name)"
+
+              SCAN_FLAG="--changed-only"
+              if [[ "${{ parameters.scanMode }}" == "all" ]]; then
+                SCAN_FLAG="--all"
+              fi
+
+              bash "$SCANNER" $SCAN_FLAG --verbose
+            displayName: 'Run Iron Dome Scan'
+            env:
+              SYSTEM_PULLREQUEST_TARGETBRANCH: $(System.PullRequest.TargetBranch)

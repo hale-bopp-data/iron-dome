@@ -1,0 +1,60 @@
+# Iron Dome — GitHub Actions Reusable Workflow
+# Add to your repo as build validation on PRs.
+#
+# Usage in your repo's .github/workflows/ci.yml:
+#
+#   jobs:
+#     iron-dome:
+#       uses: hale-bopp-data/iron-dome/.github/workflows/iron-dome.yml@main
+#       with:
+#         scan-mode: changed-only
+#
+# Or copy this file into your repo and reference it locally.
+
+name: Iron Dome
+
+on:
+  workflow_call:
+    inputs:
+      scan-mode:
+        description: "Scan mode: 'changed-only' or 'all'"
+        required: false
+        default: "changed-only"
+        type: string
+
+jobs:
+  iron-dome:
+    name: "Iron Dome — Security Scan"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for diff
+
+      - name: Checkout Iron Dome
+        uses: actions/checkout@v4
+        with:
+          repository: hale-bopp-data/iron-dome
+          path: .iron-dome-tool
+          ref: main
+
+      - name: Run Iron Dome Scan
+        run: |
+          chmod +x .iron-dome-tool/src/iron-dome-scan.sh
+          chmod +x .iron-dome-tool/src/iron-dome-core.sh
+          chmod +x .iron-dome-tool/src/guards/*.sh
+
+          export IRON_DOME_HOME=".iron-dome-tool"
+
+          SCAN_FLAG="--changed-only"
+          if [[ "${{ inputs.scan-mode }}" == "all" ]]; then
+            SCAN_FLAG="--all"
+          fi
+
+          bash .iron-dome-tool/src/iron-dome-scan.sh $SCAN_FLAG --verbose
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf .iron-dome-tool

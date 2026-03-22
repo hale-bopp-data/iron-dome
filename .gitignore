@@ -1,0 +1,5 @@
+# Iron Dome .gitignore
+telemetry.jsonl
+*.backup.*
+.iron-dome-env.sh
+.semaphore.json

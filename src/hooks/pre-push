@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# ============================================================================
+# Iron Dome — Pre-Push Hook
+# ============================================================================
+# Guards: branch policy, semaphore, orphan.
+#
+# Install: iron-dome init
+# The Dumb Guard: no AI, no LLM — pure enforcement.
+# ============================================================================
+
+set -euo pipefail
+
+# Find Iron Dome installation
+IRON_DOME_HOME="${IRON_DOME_HOME:-}"
+if [[ -z "$IRON_DOME_HOME" ]]; then
+  for candidate in \
+    "$HOME/.iron-dome" \
+    "/opt/iron-dome" \
+    "/usr/local/share/iron-dome" \
+    "$(dirname "$(dirname "${BASH_SOURCE[0]}")")"; do
+    if [[ -f "$candidate/src/iron-dome-core.sh" ]]; then
+      IRON_DOME_HOME="$candidate"
+      break
+    fi
+  done
+fi
+
+if [[ -z "$IRON_DOME_HOME" ]] || [[ ! -f "$IRON_DOME_HOME/src/iron-dome-core.sh" ]]; then
+  echo "Iron Dome: core not found. Skipping pre-push checks."
+  exit 0
+fi
+
+source "$IRON_DOME_HOME/src/iron-dome-core.sh"
+_load_guards
+
+echo "Iron Dome v${IRON_DOME_VERSION}: Pre-Push Checks..."
+
+# --- Layer 0: Branch Policy ---
+if type guard_branch_policy &>/dev/null; then
+  guard_branch_policy || exit 1
+fi
+
+# --- Layer 1: Semaphore ---
+if type guard_semaphore &>/dev/null; then
+  guard_semaphore
+  sem_result=$?
+  if [[ $sem_result -eq 1 ]]; then
+    exit 1
+  fi
+fi
+
+# --- Layer 2: Orphan Guard ---
+if type guard_orphan &>/dev/null; then
+  guard_orphan || exit 1
+fi
+
+echo "Iron Dome: pre-push checks passed."
+exit 0

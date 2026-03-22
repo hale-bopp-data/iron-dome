@@ -242,6 +242,108 @@ _print_report() {
   fi
 }
 
+# --- YAML Config Reader (minimal, no yq dependency) ---
+# Reads iron-dome.yml to determine which guards are enabled.
+# Populates IRON_DOME_GUARD_ENABLED associative array.
+
+declare -A IRON_DOME_GUARD_ENABLED
+
+_load_config() {
+  # Find config file: repo root > IRON_DOME_HOME > defaults
+  local config_file=""
+  local repo_root
+  repo_root=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
+
+  if [[ -f "${repo_root}/iron-dome.yml" ]]; then
+    config_file="${repo_root}/iron-dome.yml"
+  elif [[ -f "$(_iron_dome_home)/iron-dome.yml" ]]; then
+    config_file="$(_iron_dome_home)/iron-dome.yml"
+  fi
+
+  # Defaults: what's ON if no config file exists
+  IRON_DOME_GUARD_ENABLED=(
+    [secrets]=true
+    [conflict_markers]=true
+    [large_file]=true
+    [sensitive_files]=true
+    [branch_policy]=true
+    [docker_run]=false
+    [encoding]=false
+    [path_length]=false
+    [debt]=false
+    [semaphore]=false
+    [orphan]=false
+  )
+
+  if [[ -z "$config_file" ]]; then
+    return 0
+  fi
+
+  # Parse enabled/disabled state from YAML
+  # Looks for patterns like:
+  #   secrets:
+  #     enabled: true
+  local current_guard=""
+  while IFS= read -r line; do
+    local trimmed="${line#"${line%%[![:space:]]*}"}"  # trim leading whitespace
+    local indent="${line%%[! ]*}"  # leading spaces
+
+    # Top-level guard name (2-space indent under guards:)
+    if [[ ${#indent} -eq 2 ]] && [[ "$trimmed" =~ ^([a-z_]+):$ ]]; then
+      current_guard="${BASH_REMATCH[1]}"
+      continue
+    fi
+
+    # enabled: true/false (4-space indent)
+    if [[ -n "$current_guard" ]] && [[ ${#indent} -ge 4 ]] && [[ "$trimmed" =~ ^enabled:[[:space:]]*(true|false) ]]; then
+      IRON_DOME_GUARD_ENABLED[$current_guard]="${BASH_REMATCH[1]}"
+      continue
+    fi
+
+    # Reset guard context on dedent
+    if [[ ${#indent} -le 1 ]] && [[ -n "$trimmed" ]] && [[ ! "$trimmed" =~ ^# ]]; then
+      current_guard=""
+    fi
+  done < "$config_file"
+
+  # Load per-repo override (.iron-dome.yml)
+  local override_file="${repo_root}/.iron-dome.yml"
+  if [[ -f "$override_file" ]]; then
+    local in_disabled=false
+    while IFS= read -r line; do
+      local trimmed="${line#"${line%%[![:space:]]*}"}"
+      if [[ "$trimmed" =~ ^disabled_patterns: ]]; then
+        in_disabled=true
+        continue
+      fi
+      if $in_disabled; then
+        if [[ "$trimmed" =~ ^-[[:space:]]*\"(.+)\" ]] || [[ "$trimmed" =~ ^-[[:space:]]*\'(.+)\' ]]; then
+          IRON_DOME_DISABLED_PATTERNS+=("${BASH_REMATCH[1]}")
+        elif [[ -n "$trimmed" ]] && ! [[ "$trimmed" =~ ^- ]]; then
+          in_disabled=false
+        fi
+      fi
+    done < "$override_file"
+  fi
+}
+
+# --- Guard enabled checker ---
+_is_guard_enabled() {
+  local guard_name="$1"
+  local val="${IRON_DOME_GUARD_ENABLED[$guard_name]:-}"
+
+  # Default: secrets, conflict_markers, large_file, sensitive_files, branch_policy = on
+  # Everything else = off
+  if [[ -z "$val" ]]; then
+    case "$guard_name" in
+      secrets|conflict_markers|large_file|sensitive_files|branch_policy) return 0 ;;
+      *) return 1 ;;
+    esac
+  fi
+
+  [[ "$val" == "true" ]]
+}
+
 # --- Load guard modules ---
 _load_guards() {
   local guard_dir
@@ -257,4 +359,7 @@ _load_guards() {
       [[ -f "$guard_file" ]] && source "$guard_file"
     done
   fi
+
+  # Load config after guards (config decides which ones run)
+  _load_config
 }

@@ -47,17 +47,17 @@ ERRORS=0
 
 echo "Iron Dome v${IRON_DOME_VERSION}: Pre-Commit Scan..."
 
-# --- Run guards on each file ---
+# --- Run guards on each file (respects iron-dome.yml config) ---
 for file in $STAGED_FILES; do
   [[ ! -f "$file" ]] && continue
 
   # Sensitive file guard (checks filename, not content)
-  if type guard_sensitive_files &>/dev/null; then
+  if _is_guard_enabled "sensitive_files" && type guard_sensitive_files &>/dev/null; then
     guard_sensitive_files "$file" || ERRORS=$((ERRORS + 1))
   fi
 
   # Large file guard
-  if type guard_large_file &>/dev/null; then
+  if _is_guard_enabled "large_file" && type guard_large_file &>/dev/null; then
     guard_large_file "$file" || ERRORS=$((ERRORS + 1))
   fi
 
@@ -67,20 +67,16 @@ for file in $STAGED_FILES; do
   fi
 
   # Secrets scan
-  guard_secrets "$file" || true
+  _is_guard_enabled "secrets" && guard_secrets "$file" || true
 
   # Conflict markers
-  guard_conflict_markers "$file" || true
+  _is_guard_enabled "conflict_markers" && guard_conflict_markers "$file" || true
 
   # Docker run guard
-  if type guard_docker_run &>/dev/null; then
-    guard_docker_run "$file" || true
-  fi
+  _is_guard_enabled "docker_run" && type guard_docker_run &>/dev/null && guard_docker_run "$file" || true
 
   # Debt guard (advisory — never blocks)
-  if type guard_debt &>/dev/null; then
-    guard_debt "$file" || true
-  fi
+  _is_guard_enabled "debt" && type guard_debt &>/dev/null && guard_debt "$file" || true
 done
 
 # --- Evaluate results ---

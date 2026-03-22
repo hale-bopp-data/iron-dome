@@ -94,21 +94,13 @@ main() {
     $VERBOSE && echo "  SCAN: $file"
     scanned_count=$((scanned_count + 1))
 
-    # Run enabled guards
-    guard_secrets "$file" || true
-    guard_conflict_markers "$file" || true
-
-    # Docker run guard (check if function exists = guard loaded)
-    type guard_docker_run &>/dev/null && guard_docker_run "$file" || true
-
-    # Large file guard
-    type guard_large_file &>/dev/null && guard_large_file "$file" || true
-
-    # Sensitive file guard
-    type guard_sensitive_files &>/dev/null && guard_sensitive_files "$file" || true
-
-    # Debt guard (advisory)
-    type guard_debt &>/dev/null && guard_debt "$file" || true
+    # Run enabled guards (respects iron-dome.yml config)
+    _is_guard_enabled "secrets" && guard_secrets "$file" || true
+    _is_guard_enabled "conflict_markers" && guard_conflict_markers "$file" || true
+    _is_guard_enabled "docker_run" && type guard_docker_run &>/dev/null && guard_docker_run "$file" || true
+    _is_guard_enabled "large_file" && type guard_large_file &>/dev/null && guard_large_file "$file" || true
+    _is_guard_enabled "sensitive_files" && type guard_sensitive_files &>/dev/null && guard_sensitive_files "$file" || true
+    _is_guard_enabled "debt" && type guard_debt &>/dev/null && guard_debt "$file" || true
 
   done <<< "$files"
 

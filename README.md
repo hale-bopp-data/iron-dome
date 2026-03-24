@@ -1,5 +1,11 @@
 # Iron Dome
 
+[![Tests](https://github.com/hale-bopp-data/iron-dome/actions/workflows/test.yml/badge.svg)](https://github.com/hale-bopp-data/iron-dome/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-2.1.0-green.svg)](CHANGELOG.md)
+[![Bash](https://img.shields.io/badge/made%20with-bash-1f425f.svg)](https://www.gnu.org/software/bash/)
+[![Zero Dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen.svg)](#requirements)
+
 **Non-AI security for AI-assisted development.**
 
 Iron Dome is a suite of composable git guards that protect your codebase from common mistakes made by AI coding assistants (Copilot, Cursor, Claude Code, Devin) and humans alike. It runs as git hooks (pre-commit, pre-push) and CI pipeline checks.
@@ -73,6 +79,25 @@ graph TD
 
 ## Quick Start
 
+**One-liner install:**
+
+```bash
+curl -sL https://raw.githubusercontent.com/hale-bopp-data/iron-dome/main/install.sh | bash
+```
+
+**Then, in any repo:**
+
+```bash
+cd your-project
+iron-dome init       # install hooks
+iron-dome doctor     # verify
+```
+
+That's it. Every `git commit` and `git push` is now guarded.
+
+<details>
+<summary>Manual install (or server/CI setup)</summary>
+
 ```bash
 # Clone Iron Dome
 git clone https://github.com/hale-bopp-data/iron-dome.git ~/.iron-dome
@@ -80,13 +105,6 @@ git clone https://github.com/hale-bopp-data/iron-dome.git ~/.iron-dome
 # Add to PATH
 echo 'export PATH="$HOME/.iron-dome:$PATH"' >> ~/.bashrc
 source ~/.bashrc
-
-# Install in your repo
-cd your-project
-iron-dome init
-
-# Verify
-iron-dome doctor
 ```
 
 On a server (e.g., Ubuntu CI agent):
@@ -95,6 +113,8 @@ On a server (e.g., Ubuntu CI agent):
 git clone https://github.com/hale-bopp-data/iron-dome.git /opt/iron-dome
 export PATH="/opt/iron-dome:$PATH"
 ```
+
+</details>
 
 ## What It Does
 
@@ -310,6 +330,21 @@ Iron Dome was born inside [EasyWay](https://github.com/easyway-data), a platform
 4. Measures its own effectiveness (telemetry)
 
 We built Iron Dome to be that gate. Now it's yours.
+
+## Examples
+
+See the [`examples/`](examples/) directory for ready-to-use configurations:
+
+| Config | Use case |
+|--------|----------|
+| [`minimal.yml`](examples/minimal.yml) | Small projects — just the essentials |
+| [`multi-agent.yml`](examples/multi-agent.yml) | Repos with multiple AI agents |
+| [`ci-only.yml`](examples/ci-only.yml) | Server-side scanning only |
+| [`monorepo.yml`](examples/monorepo.yml) | Large codebases with many packages |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to report bugs, suggest guards, and submit PRs.
 
 ## License
 

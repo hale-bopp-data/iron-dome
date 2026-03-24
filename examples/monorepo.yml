@@ -1,0 +1,57 @@
+# Iron Dome — Monorepo Configuration
+# Tuned for large codebases with many packages/services.
+# Higher file size limit, relaxed debt tracking, custom whitelist.
+#
+# Copy to your repo root as iron-dome.yml
+
+version: "2.0.0"
+
+guards:
+  secrets:
+    enabled: true
+    severity: blocking
+  conflict_markers:
+    enabled: true
+    severity: blocking
+  large_file:
+    enabled: true
+    max_size_kb: 5120  # 5MB — monorepos often have larger assets
+    exclude: ["*.lock", "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "Cargo.lock"]
+  sensitive_files:
+    enabled: true
+    severity: blocking
+  docker_run:
+    enabled: true
+    severity: blocking
+  debt:
+    enabled: true
+    severity: advisory
+    exclude_files: ["CHANGELOG.md", "*.md", "iron-dome.yml", "**/*.test.*", "**/*.spec.*"]
+  branch_policy:
+    enabled: true
+    protected_branches: ["main", "master", "develop", "release/*"]
+  semaphore:
+    enabled: false
+  orphan:
+    enabled: false
+
+exclusions:
+  skip_patterns:
+    - 'node_modules/'
+    - '\.git/'
+    - 'vendor/'
+    - '__pycache__/'
+    - '\.venv/'
+    - 'dist/'
+    - 'build/'
+    - '.next/'
+    - 'coverage/'
+  max_file_size_kb: 1024  # Don't scan files larger than 1MB
+
+whitelist: []
+  # Example: monorepo-specific exceptions
+  # - file: "packages/legacy-auth/src/config.js"
+  #   guard: secrets
+  #   pattern: "Generic API Key Assignment"
+  #   reason: "Legacy config with placeholder keys, migration tracked in JIRA-1234"
+  #   expires: "2026-12-31"

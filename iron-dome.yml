@@ -218,7 +218,7 @@ whitelist: []
   # - file: "tests/fixtures/fake-credentials.json"
   #   guard: sensitive_files
   #   reason: "Test fixture with fake data, no real credentials"
-  #   approved_by: "evgenia"
+  #   approved_by: "alice"
   #
   # - file: "docs/examples/api-demo.js"
   #   guard: secrets
@@ -233,7 +233,7 @@ whitelist: []
   # - file: "data/large-seed.sql"
   #   guard: large_file
   #   reason: "Database seed file, 3MB, required for local dev setup"
-  #   approved_by: "evgenia"
+  #   approved_by: "alice"
 
 # =============================================================================
 # TELEMETRY

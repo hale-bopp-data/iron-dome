@@ -8,8 +8,11 @@ on:
 
 jobs:
   test:
-    name: "Iron Dome — Test Suite"
-    runs-on: ubuntu-latest
+    name: "Iron Dome — Tests (${{ matrix.os }})"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
 
     steps:
       - name: Checkout

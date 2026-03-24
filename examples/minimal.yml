@@ -1,0 +1,35 @@
+# Iron Dome — Minimal Configuration
+# Just the essentials. Good starting point for small projects.
+#
+# Copy to your repo root as iron-dome.yml
+
+version: "2.0.0"
+
+guards:
+  secrets:
+    enabled: true
+    severity: blocking
+  conflict_markers:
+    enabled: true
+    severity: blocking
+  large_file:
+    enabled: true
+    max_size_kb: 1024
+  sensitive_files:
+    enabled: true
+    severity: blocking
+  branch_policy:
+    enabled: true
+    protected_branches: ["main"]
+
+  # Everything else: off
+  docker_run:
+    enabled: false
+  debt:
+    enabled: false
+  semaphore:
+    enabled: false
+  orphan:
+    enabled: false
+
+whitelist: []

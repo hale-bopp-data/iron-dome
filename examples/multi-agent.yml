@@ -1,0 +1,42 @@
+# Iron Dome — Multi-Agent Configuration
+# For repos where multiple AI agents (Claude Code, Cursor, Copilot, etc.)
+# push code concurrently. Enables semaphore and orphan guard.
+#
+# Copy to your repo root as iron-dome.yml
+
+version: "2.0.0"
+
+guards:
+  secrets:
+    enabled: true
+    severity: blocking
+  conflict_markers:
+    enabled: true
+    severity: blocking
+  large_file:
+    enabled: true
+    max_size_kb: 1024
+  sensitive_files:
+    enabled: true
+    severity: blocking
+  docker_run:
+    enabled: true
+    severity: blocking
+  debt:
+    enabled: true
+    severity: advisory
+  branch_policy:
+    enabled: true
+    protected_branches: ["main", "master", "develop"]
+  semaphore:
+    enabled: true
+    severity: blocking
+  orphan:
+    enabled: true
+    severity: blocking
+
+whitelist: []
+
+# Tip: Each agent should set these env vars before pushing:
+#   export IRON_DOME_SESSION="unique-session-id"
+#   export IRON_DOME_AGENT="agent-name"

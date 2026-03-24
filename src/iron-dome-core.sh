@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-IRON_DOME_VERSION="2.0.0"
+IRON_DOME_VERSION="2.1.0"
 
 # --- Global state ---
 IRON_DOME_FINDINGS=()

@@ -5,6 +5,21 @@ All notable changes to Iron Dome will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] — 2026-03-24
+
+### Added
+
+- **One-liner installer** — `curl -sL .../install.sh | bash` with auto-PATH setup, update, and uninstall
+- **CONTRIBUTING.md** — contributor guide: bug reports, guard proposals, PR process, code style, guard template
+- **Examples** — 4 ready-to-use configurations: `minimal.yml`, `multi-agent.yml`, `ci-only.yml`, `monorepo.yml`
+- **README badges** — tests status, version, license, bash, zero dependencies
+- **Cross-platform CI** — test matrix now runs on Ubuntu + macOS
+
+### Changed
+
+- **Quick Start** now leads with one-liner install, manual instructions in collapsible details
+- **README** includes examples table and contributing link
+
 ## [2.0.0] — 2026-03-24
 
 Initial public release.

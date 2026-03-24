@@ -128,21 +128,6 @@ guards:
       - ".env.template"
       - "*.pem.example"
 
-  # --- Encoding Guard (advisory) ---
-  # Warns about non-UTF-8 files or BOM markers.
-  encoding:
-    enabled: false  # opt-in
-    severity: advisory
-    require_utf8: true
-    block_bom: true
-
-  # --- Path Length Guard (advisory) ---
-  # Warns about paths that exceed OS limits (Windows 260 char).
-  path_length:
-    enabled: false  # opt-in
-    severity: advisory
-    max_length: 260
-
   # --- Debt Guard (advisory) ---
   # Tracks new TODO/FIXME/HACK introduced in commits.
   debt:
@@ -181,40 +166,6 @@ guards:
     provider: auto  # auto | github | gitlab | ado
     # Provider is auto-detected from remote URL.
     # For ADO: set IRON_DOME_ADO_ORG and IRON_DOME_ADO_PROJECT env vars.
-
-# =============================================================================
-# PIPELINE GUARDS (CI)
-# =============================================================================
-
-pipeline_guards:
-
-  # --- Compose Validate ---
-  # Validates docker-compose files with `docker compose config`.
-  compose_validate:
-    enabled: false
-    severity: advisory
-    patterns: ["docker-compose*.yml", "docker-compose*.yaml", "compose*.yml", "compose*.yaml"]
-
-  # --- ShellCheck ---
-  # Lints shell scripts with shellcheck.
-  shellcheck:
-    enabled: false
-    severity: advisory
-    exclude_codes: []  # e.g., [SC1091, SC2034]
-
-  # --- JSON Validate ---
-  # Validates JSON files for syntax errors.
-  json_validate:
-    enabled: false
-    severity: blocking
-    patterns: ["**/*.json"]
-    exclude: ["node_modules/**", "package-lock.json"]
-
-  # --- Branch Sync ---
-  # Warns if PR branch is behind target branch.
-  branch_sync:
-    enabled: false
-    severity: advisory
 
 # =============================================================================
 # FILE EXCLUSIONS (global)

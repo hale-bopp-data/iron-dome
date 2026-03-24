@@ -107,8 +107,6 @@ export PATH="/opt/iron-dome:$PATH"
 | **Large File** | Files exceeding size limit (default 1MB) | Enabled |
 | **Sensitive Files** | `.env`, `id_rsa`, `credentials.json` by filename | Enabled |
 | **Docker Run** | `docker run` in scripts (enforces compose-only) | Opt-in |
-| **Encoding** | Non-UTF-8 files, BOM markers | Opt-in |
-| **Path Length** | Paths > 260 chars (Windows compat) | Opt-in |
 | **Debt Tracker** | New TODO/FIXME/HACK introduced (advisory, never blocks) | Opt-in |
 
 ### Pre-Push Guards (block bad pushes)
@@ -119,15 +117,11 @@ export PATH="/opt/iron-dome:$PATH"
 | **Semaphore** | Push while another agent is working on the repo | Opt-in |
 | **Orphan Guard** | Push to branch with already-merged PR | Opt-in |
 
-### CI Pipeline Guards (server-side mirror)
+### CI Pipeline (server-side mirror)
 
 | Guard | What it checks | Platform |
 |-------|---------------|----------|
 | **Scanner** | All pre-commit checks, server-side (non-bypassable) | GitHub Actions, Azure Pipelines |
-| **Compose Validate** | `docker compose config` validation | Both |
-| **ShellCheck** | Shell script linting | Both |
-| **JSON Validate** | JSON syntax validation | Both |
-| **Branch Sync** | PR branch behind target branch | Both |
 
 ## Configuration
 

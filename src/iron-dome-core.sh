@@ -44,7 +44,7 @@ IRON_DOME_SAFE_PATTERNS=(
   "env\(\s*[\"']"
   'ChangeMe'
   'placeholder'
-  'example'
+  '(?<![A-Za-z0-9])example'
   '<REDACTED>'
   '<PASTE_'
   'your[_-]?api[_-]?key'
@@ -268,8 +268,6 @@ _load_config() {
     [sensitive_files]=true
     [branch_policy]=true
     [docker_run]=false
-    [encoding]=false
-    [path_length]=false
     [debt]=false
     [semaphore]=false
     [orphan]=false

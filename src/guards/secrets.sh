@@ -23,7 +23,7 @@ guard_secrets() {
 
     # Single grep call per pattern per file — fast
     local matches
-    matches=$(LC_ALL=en_US.UTF-8 grep -nP "$pattern" "$file" 2>/dev/null || true)
+    matches=$(LC_ALL=en_US.UTF-8 grep -nP -- "$pattern" "$file" 2>/dev/null || true)
     [[ -z "$matches" ]] && continue
 
     # Check each match against safe patterns

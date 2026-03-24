@@ -75,5 +75,5 @@ teardown_sandbox
 # --- Version ---
 setup_sandbox
 reload_core
-assert_eq "version is 2.0.0" "2.0.0" "$IRON_DOME_VERSION"
+assert_eq "version is 2.1.0" "2.1.0" "$IRON_DOME_VERSION"
 teardown_sandbox

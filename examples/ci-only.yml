@@ -1,0 +1,38 @@
+# Iron Dome — CI-Only Configuration
+# For teams that don't want local hooks but still want server-side scanning.
+# Use with GitHub Actions or Azure Pipelines.
+#
+# Copy to your repo root as iron-dome.yml
+# Do NOT run `iron-dome init` — hooks are not needed in this setup.
+
+version: "2.0.0"
+
+guards:
+  # CI scanner will check these
+  secrets:
+    enabled: true
+    severity: blocking
+  conflict_markers:
+    enabled: true
+    severity: blocking
+  large_file:
+    enabled: true
+    max_size_kb: 2048
+  sensitive_files:
+    enabled: true
+    severity: blocking
+  debt:
+    enabled: true
+    severity: advisory
+
+  # Disable hook-only guards (not relevant in CI)
+  branch_policy:
+    enabled: false
+  semaphore:
+    enabled: false
+  orphan:
+    enabled: false
+  docker_run:
+    enabled: false
+
+whitelist: []

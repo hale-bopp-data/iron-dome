@@ -441,7 +441,7 @@ _is_guard_enabled() {
   # Everything else = off
   if [[ -z "$val" ]]; then
     case "$guard_name" in
-      secrets|conflict_markers|large_file|sensitive_files|branch_policy) return 0 ;;
+      secrets|conflict_markers|large_file|sensitive_files|branch_policy|encoding|path_length) return 0 ;;
       *) return 1 ;;
     esac
   fi

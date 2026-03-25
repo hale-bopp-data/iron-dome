@@ -61,6 +61,16 @@ for file in $STAGED_FILES; do
     guard_large_file "$file" || ERRORS=$((ERRORS + 1))
   fi
 
+  # Path length guard (PBI #516)
+  if _is_guard_enabled "path_length" && type guard_path_length &>/dev/null; then
+    guard_path_length "$file" || ERRORS=$((ERRORS + 1))
+  fi
+
+  # Encoding guard (PBI #515)
+  if _is_guard_enabled "encoding" && type guard_encoding &>/dev/null; then
+    guard_encoding "$file" || ERRORS=$((ERRORS + 1))
+  fi
+
   # Skip binary/large for content scanning
   if _should_skip_file "$file"; then
     continue

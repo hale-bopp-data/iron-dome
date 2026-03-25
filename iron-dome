@@ -325,6 +325,7 @@ cmd_help() {
   echo "    --verbose       Show each file being scanned"
   echo "  doctor            Diagnose installation"
   echo "  stats [days]      Show telemetry dashboard (default: 30 days)"
+  echo "  stats-json [days] Export telemetry as JSON (add --pretty for indented)"
   echo "  config            Show active configuration"
   echo "  version           Show version"
   echo "  help              Show this help"
@@ -349,6 +350,7 @@ case "${1:-help}" in
   scan)     cmd_scan "$@" ;;
   doctor)   cmd_doctor ;;
   stats)    cmd_stats "${2:-30}" ;;
+  stats-json) bash "$IRON_DOME_HOME/src/iron-dome-stats-json.sh" "${2:-30}" "${3:-}" ;;
   config)   cmd_config ;;
   version)  cmd_version ;;
   help|--help|-h) cmd_help ;;

@@ -101,6 +101,8 @@ main() {
     _is_guard_enabled "large_file" && type guard_large_file &>/dev/null && guard_large_file "$file" || true
     _is_guard_enabled "sensitive_files" && type guard_sensitive_files &>/dev/null && guard_sensitive_files "$file" || true
     _is_guard_enabled "debt" && type guard_debt &>/dev/null && guard_debt "$file" || true
+    _is_guard_enabled "encoding" && type guard_encoding &>/dev/null && guard_encoding "$file" || true
+    _is_guard_enabled "path_length" && type guard_path_length &>/dev/null && guard_path_length "$file" || true
 
   done <<< "$files"
 

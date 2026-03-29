@@ -22,9 +22,7 @@ trigger: none
 pr: none
 
 pool:
-  vmImage: 'ubuntu-latest'  # Works on any Ubuntu agent (hosted or self-hosted)
-  # For self-hosted: uncomment below and comment above
-  # name: Default
+  name: 'Default'
 
 steps:
   - checkout: self

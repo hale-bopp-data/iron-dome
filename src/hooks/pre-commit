@@ -3,7 +3,8 @@
 # Iron Dome — Pre-Commit Hook
 # ============================================================================
 # Guards: secrets, conflict markers, docker run, large file, sensitive file,
-#         encoding, path length, debt (advisory).
+#         encoding, path length, debt (advisory),
+#         local links (G-CI-3), untracked imports (G-CI-5), lockfile sync (G-CI-6).
 #
 # Install: iron-dome init
 # The Dumb Guard: no AI, no LLM — pure enforcement.
@@ -87,7 +88,24 @@ for file in $STAGED_FILES; do
 
   # Debt guard (advisory — never blocks)
   _is_guard_enabled "debt" && type guard_debt &>/dev/null && guard_debt "$file" || true
+
+  # Local links guard (G-CI-3) — checks package-lock.json for symlinks
+  if _is_guard_enabled "local_links" && type guard_local_links &>/dev/null; then
+    guard_local_links "$file" || ERRORS=$((ERRORS + 1))
+  fi
+
+  # Untracked imports guard (G-CI-5) — checks relative imports to untracked files
+  if _is_guard_enabled "untracked_imports" && type guard_untracked_imports &>/dev/null; then
+    guard_untracked_imports "$file" || ERRORS=$((ERRORS + 1))
+  fi
 done
+
+# --- Repo-level guards (run once, not per file) ---
+
+# Lockfile sync guard (G-CI-6) — package.json without package-lock.json
+if _is_guard_enabled "lockfile_sync" && type guard_lockfile_sync &>/dev/null; then
+  guard_lockfile_sync "$STAGED_FILES" || ERRORS=$((ERRORS + 1))
+fi
 
 # --- Evaluate results ---
 local_blocking=$((IRON_DOME_SECRETS_FOUND + IRON_DOME_CONFLICTS_FOUND + IRON_DOME_DOCKER_FOUND + IRON_DOME_OTHER_FOUND + ERRORS))

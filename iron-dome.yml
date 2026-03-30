@@ -128,6 +128,31 @@ guards:
       - ".env.template"
       - "*.pem.example"
 
+  # --- Local Links Guard (BLOCKING) — G-CI-3 ---
+  # Blocks package-lock.json with local symlink references (npm link artifacts).
+  # These work locally but break npm ci in CI.
+  local_links:
+    enabled: true
+    severity: blocking
+    message: "Local symlink in package-lock.json. Run: npm uninstall <pkg> && npm install <pkg>"
+
+  # --- Untracked Imports Guard (BLOCKING) — G-CI-5 ---
+  # Detects staged .ts/.js files importing from relative paths that point to
+  # files not tracked by git. Builds locally but fails in CI.
+  untracked_imports:
+    enabled: true
+    severity: blocking
+    file_types: ["*.ts", "*.tsx", "*.js", "*.jsx", "*.mts", "*.mjs"]
+    message: "Importing untracked file. Run: git add <file>"
+
+  # --- Lockfile Sync Guard (BLOCKING) — G-CI-6 ---
+  # Blocks commits where package.json is staged without package-lock.json.
+  # Desync causes npm ci to fail in CI.
+  lockfile_sync:
+    enabled: true
+    severity: blocking
+    message: "package.json staged without package-lock.json. Run: npm install && git add package-lock.json"
+
   # --- Debt Guard (advisory) ---
   # Tracks new TODO/FIXME/HACK introduced in commits.
   debt:

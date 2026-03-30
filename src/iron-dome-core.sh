@@ -271,6 +271,9 @@ _load_config() {
     [debt]=false
     [semaphore]=false
     [orphan]=false
+    [local_links]=true
+    [untracked_imports]=true
+    [lockfile_sync]=true
   )
 
   if [[ -z "$config_file" ]]; then

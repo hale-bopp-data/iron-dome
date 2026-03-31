@@ -238,7 +238,10 @@ exclusions:
 #   - approved_by: (optional) who approved the exception
 #   - expires: (optional) ISO date — exception auto-reverts after this date
 
-whitelist: []
+whitelist:
+  - file: "src/ci/secrets-scan-ci.py"
+    guard: secrets
+    reason: "Contains regex patterns for secret detection (not actual secrets)"
   # Examples:
   # - file: "tests/fixtures/fake-credentials.json"
   #   guard: sensitive_files

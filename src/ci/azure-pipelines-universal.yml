@@ -69,9 +69,53 @@ steps:
       chmod +x "$IRON_DOME_HOME/src/iron-dome-core.sh"
       chmod +x "$IRON_DOME_HOME/src/guards/"*.sh 2>/dev/null || true
 
-      # --- Scan ---
+      # --- Scan (pre-commit guards: secrets, conflicts, etc.) ---
       cd "$(Build.SourcesDirectory)"
       bash "$IRON_DOME_HOME/src/iron-dome-scan.sh" --changed-only --verbose
     displayName: 'Iron Dome — Security Scan'
     env:
       SYSTEM_PULLREQUEST_TARGETBRANCH: $(System.PullRequest.TargetBranch)
+
+  # --- CI-level guardrails (G-CI-8 → G-CI-13) ---
+  # These run at repo level, not per-file. Each is independent and non-blocking
+  # to each other (all run even if one fails). Final exit code is worst-of.
+
+  - script: |
+      set -e
+      IRON_DOME_HOME="${IRON_DOME_HOME:-/opt/iron-dome}"
+      if [[ ! -d "$IRON_DOME_HOME" ]]; then
+        IRON_DOME_HOME="/tmp/iron-dome"
+      fi
+      CI_GUARDS="$IRON_DOME_HOME/src/ci"
+
+      cd "$(Build.SourcesDirectory)"
+      EXIT=0
+
+      echo ""
+      echo "============================================"
+      echo "  Iron Dome — CI Guardrails (G-CI-8→13)"
+      echo "============================================"
+      echo ""
+
+      for guard in \
+        "$CI_GUARDS/test-import-coverage.py" \
+        "$CI_GUARDS/pyproject-lint.py" \
+        "$CI_GUARDS/ci-yaml-lint.py" \
+        "$CI_GUARDS/secrets-scan-ci.py" \
+        "$CI_GUARDS/dep-audit.py"; do
+
+        if [[ -f "$guard" ]]; then
+          echo "--- $(basename "$guard") ---"
+          python3 "$guard" || EXIT=1
+          echo ""
+        fi
+      done
+
+      # G-CI-13 (min-test-gate) runs after tests — see separate step below
+      if [[ $EXIT -ne 0 ]]; then
+        echo "##vso[task.complete result=Failed;]Iron Dome CI guardrails: violations found"
+      fi
+      exit $EXIT
+    displayName: 'Iron Dome — CI Guardrails (G-CI-8→13)'
+    env:
+      IRON_DOME_HOME: $(IRON_DOME_HOME)

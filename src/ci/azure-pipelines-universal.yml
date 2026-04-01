@@ -76,7 +76,7 @@ steps:
     env:
       SYSTEM_PULLREQUEST_TARGETBRANCH: $(System.PullRequest.TargetBranch)
 
-  # --- CI-level guardrails (G-CI-8 → G-CI-13) ---
+  # --- CI-level guardrails (G-CI-8 → G-CI-14) ---
   # These run at repo level, not per-file. Each is independent and non-blocking
   # to each other (all run even if one fails). Final exit code is worst-of.
 
@@ -93,7 +93,7 @@ steps:
 
       echo ""
       echo "============================================"
-      echo "  Iron Dome — CI Guardrails (G-CI-8→13)"
+      echo "  Iron Dome — CI Guardrails (G-CI-8→14)"
       echo "============================================"
       echo ""
 
@@ -102,7 +102,8 @@ steps:
         "$CI_GUARDS/pyproject-lint.py" \
         "$CI_GUARDS/ci-yaml-lint.py" \
         "$CI_GUARDS/secrets-scan-ci.py" \
-        "$CI_GUARDS/dep-audit.py"; do
+        "$CI_GUARDS/dep-audit.py" \
+        "$CI_GUARDS/empty-diff-check.py"; do
 
         if [[ -f "$guard" ]]; then
           echo "--- $(basename "$guard") ---"
@@ -116,6 +117,7 @@ steps:
         echo "##vso[task.complete result=Failed;]Iron Dome CI guardrails: violations found"
       fi
       exit $EXIT
-    displayName: 'Iron Dome — CI Guardrails (G-CI-8→13)'
+    displayName: 'Iron Dome — CI Guardrails (G-CI-8→14)'
     env:
       IRON_DOME_HOME: $(IRON_DOME_HOME)
+      SYSTEM_PULLREQUEST_TARGETBRANCH: $(System.PullRequest.TargetBranch)

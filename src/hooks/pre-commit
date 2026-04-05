@@ -4,7 +4,11 @@
 # ============================================================================
 # Guards: secrets, conflict markers, docker run, large file, sensitive file,
 #         encoding, path length, debt (advisory),
-#         local links (G-CI-3), untracked imports (G-CI-5), lockfile sync (G-CI-6).
+#         local links (G-CI-3), untracked imports (G-CI-5), lockfile sync (G-CI-6),
+#         exec injection (S244), innerHTML XSS (S244), db credentials (S244),
+#         docker socket (S244), bind all interfaces (S244),
+#         jwt dev bypass (S244), cors wildcard (S244), webhook no auth (S244),
+#         eval injection (S244).
 #
 # Install: iron-dome init
 # The Dumb Guard: no AI, no LLM — pure enforcement.
@@ -85,6 +89,51 @@ for file in $STAGED_FILES; do
 
   # Docker run guard
   _is_guard_enabled "docker_run" && type guard_docker_run &>/dev/null && guard_docker_run "$file" || true
+
+  # Command injection guard (execSync with interpolation)
+  if _is_guard_enabled "exec_injection" && type guard_exec_injection &>/dev/null; then
+    guard_exec_injection "$file" || ERRORS=$((ERRORS + 1))
+  fi
+
+  # XSS guard (innerHTML with dynamic content)
+  if _is_guard_enabled "innerhtml_xss" && type guard_innerhtml_xss &>/dev/null; then
+    guard_innerhtml_xss "$file" || ERRORS=$((ERRORS + 1))
+  fi
+
+  # Database credentials guard (hardcoded connection strings)
+  if _is_guard_enabled "db_credentials" && type guard_db_credentials &>/dev/null; then
+    guard_db_credentials "$file" || ERRORS=$((ERRORS + 1))
+  fi
+
+  # Docker socket guard (docker.sock mounts)
+  if _is_guard_enabled "docker_socket" && type guard_docker_socket &>/dev/null; then
+    guard_docker_socket "$file" || ERRORS=$((ERRORS + 1))
+  fi
+
+  # Bind all interfaces guard (0.0.0.0 exposure)
+  if _is_guard_enabled "bind_all" && type guard_bind_all &>/dev/null; then
+    guard_bind_all "$file" || ERRORS=$((ERRORS + 1))
+  fi
+
+  # JWT dev bypass guard (auth disabled by NODE_ENV)
+  if _is_guard_enabled "jwt_dev_bypass" && type guard_jwt_dev_bypass &>/dev/null; then
+    guard_jwt_dev_bypass "$file" || ERRORS=$((ERRORS + 1))
+  fi
+
+  # CORS wildcard guard
+  if _is_guard_enabled "cors_wildcard" && type guard_cors_wildcard &>/dev/null; then
+    guard_cors_wildcard "$file" || ERRORS=$((ERRORS + 1))
+  fi
+
+  # Webhook without auth guard
+  if _is_guard_enabled "webhook_no_auth" && type guard_webhook_no_auth &>/dev/null; then
+    guard_webhook_no_auth "$file" || ERRORS=$((ERRORS + 1))
+  fi
+
+  # eval/Function injection guard
+  if _is_guard_enabled "eval_injection" && type guard_eval_injection &>/dev/null; then
+    guard_eval_injection "$file" || ERRORS=$((ERRORS + 1))
+  fi
 
   # Debt guard (advisory — never blocks)
   _is_guard_enabled "debt" && type guard_debt &>/dev/null && guard_debt "$file" || true

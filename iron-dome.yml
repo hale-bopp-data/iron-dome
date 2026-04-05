@@ -65,6 +65,26 @@ guards:
         pattern: '(?i)(secret|token|credential)\s*[:=]\s*["''][A-Za-z0-9\-_/+=]{20,}["'']'
         severity: high
 
+      - name: "Azure DevOps PAT"
+        pattern: '[A-Za-z0-9]{52}JQQJ99C[A-Za-z0-9]+'
+        severity: critical
+
+      - name: "Qdrant API Key"
+        pattern: '(?i)qdrant[_-]?api[_-]?key\s*[:=]\s*["''][A-Za-z0-9]{20,}["'']'
+        severity: high
+
+      - name: "N8N API Key"
+        pattern: 'n8n_api_[a-f0-9]{60,}'
+        severity: critical
+
+      - name: "Google / Gemini API Key"
+        pattern: 'AIzaSy[A-Za-z0-9\-_]{33}'
+        severity: critical
+
+      - name: "Terraform Hardcoded Password"
+        pattern: '(?i)initial_bot_password\s*='
+        severity: high
+
     # Lines matching ANY safe pattern are skipped (false positive suppression)
     safe_patterns:
       - '\$\{[A-Z_]+\}'           # ${ENV_VAR}
@@ -123,10 +143,20 @@ guards:
       - "credentials.json"
       - "service-account*.json"
       - "*.keystore"
+      - ".env.developer"
+      - ".env.executor"
+      - ".env.github"
+      - ".env.prod"
+      - ".env.publish"
+      - "*.tfvars"
+      - "age-key.txt"
+      - "*.decrypted"
+      - ".mcp.json"
     allow:
       - ".env.example"
       - ".env.template"
       - "*.pem.example"
+      - "*.tfvars.example"
 
   # --- Local Links Guard (BLOCKING) — G-CI-3 ---
   # Blocks package-lock.json with local symlink references (npm link artifacts).
@@ -152,6 +182,86 @@ guards:
     enabled: true
     severity: blocking
     message: "package.json staged without package-lock.json. Run: npm install && git add package-lock.json"
+
+  # --- Command Injection Guard (BLOCKING) — Audit S244 ---
+  # Detects execSync/spawnSync with string interpolation in JS/TS.
+  # Safe alternative: execFileSync("cmd", ["arg1", "arg2"])
+  exec_injection:
+    enabled: true
+    severity: blocking
+    file_types: ["*.js", "*.mjs", "*.cjs", "*.ts", "*.mts"]
+    message: "Use execFileSync(cmd, [args]) instead of execSync with string interpolation."
+
+  # --- XSS Guard (BLOCKING) — Audit S244 ---
+  # Detects innerHTML assignments with dynamic content.
+  # SVG injection is especially dangerous (can contain <script>).
+  # Safe alternative: textContent, DOM API, or DOMPurify for HTML.
+  innerhtml_xss:
+    enabled: true
+    severity: blocking
+    file_types: ["*.js", "*.mjs", "*.ts", "*.mts", "*.tsx", "*.jsx", "*.html"]
+    message: "Use textContent or DOM API instead of innerHTML with dynamic content."
+
+  # --- Database Credentials Guard (BLOCKING) — Audit S244 ---
+  # Detects hardcoded database connection strings with embedded passwords.
+  # Covers PostgreSQL, MySQL, MongoDB, SQL Server, Redis.
+  db_credentials:
+    enabled: true
+    severity: blocking
+    message: "Use environment variables for database connection strings."
+
+  # --- Docker Socket Guard (BLOCKING) — Audit S244 ---
+  # Detects docker.sock mounts in compose/Dockerfiles.
+  # docker.sock access = container escape, even with :ro.
+  docker_socket:
+    enabled: false  # opt-in: some setups legitimately need it
+    severity: blocking
+    message: "docker.sock mount allows container escape. Use a delegated proxy or remove."
+
+  # --- Bind All Interfaces Guard (BLOCKING) — Audit S244 ---
+  # Detects services binding to 0.0.0.0 (all interfaces).
+  # Bypasses reverse proxy auth when exposed externally.
+  bind_all:
+    enabled: false  # opt-in: Docker containers legitimately use 0.0.0.0 internally
+    severity: blocking
+    message: "Bind to 127.0.0.1 instead of 0.0.0.0 to prevent auth bypass."
+
+  # --- JWT Dev Bypass Guard (BLOCKING) — Audit S244 / GEDI ---
+  # Detects auth logic that is disabled when NODE_ENV=development or DB_MODE=mock.
+  # Hardcoded dev-user/test-user identities in auth middleware.
+  # GEDI: "La vittoria si ottiene prima della battaglia" — catch before prod.
+  jwt_dev_bypass:
+    enabled: true
+    severity: blocking
+    file_types: ["*.js", "*.mjs", "*.cjs", "*.ts", "*.mts"]
+    message: "Auth bypass based on NODE_ENV/DB_MODE detected. Use feature flags, not env checks."
+
+  # --- CORS Wildcard Guard (BLOCKING) — Audit S244 / GEDI ---
+  # Detects Access-Control-Allow-Origin: *, cors({origin: true}),
+  # and reflected origin without validation.
+  # GEDI Testudo: "C'e' un punto debole dove gli scudi non si toccano?"
+  cors_wildcard:
+    enabled: true
+    severity: blocking
+    message: "Use an explicit origin allowlist instead of wildcard CORS."
+
+  # --- Webhook No Auth Guard (BLOCKING) — Audit S244 / GEDI ---
+  # Detects webhook handlers without HMAC/signature verification.
+  # Also catches optional webhook secrets (secret || "").
+  # GEDI Black Swan: "Se questa difesa viene bypassata, il sistema collassa?"
+  webhook_no_auth:
+    enabled: false  # opt-in: needs careful tuning to avoid false positives
+    severity: blocking
+    message: "Webhook must verify signature (HMAC-SHA256). Never make secrets optional."
+
+  # --- Eval Injection Guard (BLOCKING) — Audit S244 / GEDI ---
+  # Detects eval(), new Function(), vm.runInNewContext with dynamic input.
+  # These execute arbitrary code from strings — the most dangerous JS injection.
+  # GEDI Invisible Shield: the best security is the one nobody notices.
+  eval_injection:
+    enabled: true
+    severity: blocking
+    message: "Never use eval/Function/vm.run* with dynamic input. Use safe alternatives."
 
   # --- Debt Guard (advisory) ---
   # Tracks new TODO/FIXME/HACK introduced in commits.

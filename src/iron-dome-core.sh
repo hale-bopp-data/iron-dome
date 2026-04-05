@@ -33,6 +33,11 @@ IRON_DOME_SECRET_PATTERNS=(
   "Generic API Key|||(api[_-]?key|apikey|api[_-]?secret)\s*[:=]\s*[\"'][A-Za-z0-9\-_]{20,}[\"']"
   "Bearer Token|||bearer\s+[A-Za-z0-9\-_\.]{20,}"
   "Generic Secret|||(secret|token|credential)\s*[:=]\s*[\"'][A-Za-z0-9\-_/+=]{20,}[\"']"
+  "Azure DevOps PAT|||[A-Za-z0-9]{52}JQQJ99C[A-Za-z0-9]+"
+  "Qdrant API Key|||(?i)qdrant[_-]?api[_-]?key\s*[:=]\s*[\"'][A-Za-z0-9]{20,}[\"']"
+  "N8N API Key|||n8n_api_[a-f0-9]{60,}"
+  "Google/Gemini API Key|||AIzaSy[A-Za-z0-9\-_]{33}"
+  "Terraform Password|||(?i)initial_bot_password\s*=|(?i)(password|secret)\s*=\s*\"[^\"$]{8,}\""
 )
 
 IRON_DOME_SAFE_PATTERNS=(
@@ -274,6 +279,15 @@ _load_config() {
     [local_links]=true
     [untracked_imports]=true
     [lockfile_sync]=true
+    [exec_injection]=true
+    [innerhtml_xss]=true
+    [db_credentials]=true
+    [docker_socket]=false
+    [bind_all]=false
+    [jwt_dev_bypass]=true
+    [cors_wildcard]=true
+    [webhook_no_auth]=false
+    [eval_injection]=true
   )
 
   if [[ -z "$config_file" ]]; then

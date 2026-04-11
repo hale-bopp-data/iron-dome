@@ -4,9 +4,9 @@
 # This is the default configuration. Copy to your repo root and customize.
 # Per-repo overrides: create .iron-dome.yml in your repo root.
 #
-# Schema v2.0.0
+# Schema v2.1.0 (S285 — URL embedded creds + Forgejo password + sensitive file expansion)
 
-version: "2.0.0"
+version: "2.1.0"
 
 # =============================================================================
 # PRE-COMMIT GUARDS
@@ -85,6 +85,21 @@ guards:
         pattern: '(?i)initial_bot_password\s*='
         severity: high
 
+      # --- S285 additions ---
+      # Catches credentials embedded in URLs: https://user:password@host/...
+      # Includes ADO PATs in git remote URLs, Forgejo clone URLs with passwords,
+      # and HTTP Basic Auth baked into config files. Was the primary leak vector
+      # for S285 (.git/config pattern on the server).
+      - name: "URL Embedded Credentials"
+        pattern: 'https?://[^/\s:@]+:[^/\s@]{8,}@[^\s]+'
+        severity: critical
+
+      # Forgejo default admin creds in docker-compose, env files, deploy scripts.
+      # Detected after S285 audit of forgejo backup configs.
+      - name: "Forgejo Embedded Password"
+        pattern: '(?i)forgejo.*(password|passwd|pwd)\s*[:=]\s*["\x27]?[^\s"\x27]{6,}'
+        severity: critical
+
     # Lines matching ANY safe pattern are skipped (false positive suppression)
     safe_patterns:
       - '\$\{[A-Z_]+\}'           # ${ENV_VAR}
@@ -152,6 +167,13 @@ guards:
       - "age-key.txt"
       - "*.decrypted"
       - ".mcp.json"
+      # --- S285 additions ---
+      - ".mcp.json.bak"
+      - ".mcp.json.old"
+      - ".mcp.json.*"
+      - ".env.secrets"
+      - ".env.secrets.*"
+      - "secrets-registry.json"
     allow:
       - ".env.example"
       - ".env.template"

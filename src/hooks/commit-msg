@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# ============================================================================
+# Iron Dome — Commit-Msg Hook
+# ============================================================================
+# Runs guards that need the commit message (not the staged files).
+# Currently active guards:
+#   - ab_match: warns on AB#N vs branch number mismatch (advisory only).
+#
+# Install: iron-dome init
+# The Dumb Guard: no AI, no LLM — pure enforcement.
+# ============================================================================
+
+set -euo pipefail
+
+COMMIT_MSG_FILE="${1:-}"
+[[ -z "$COMMIT_MSG_FILE" || ! -f "$COMMIT_MSG_FILE" ]] && exit 0
+
+# Find Iron Dome installation (same logic as pre-commit)
+IRON_DOME_HOME="${IRON_DOME_HOME:-}"
+if [[ -z "$IRON_DOME_HOME" ]]; then
+  for candidate in \
+    "$HOME/.iron-dome" \
+    "/opt/iron-dome" \
+    "/usr/local/share/iron-dome" \
+    "$(dirname "$(dirname "${BASH_SOURCE[0]}")")"; do
+    if [[ -f "$candidate/src/iron-dome-core.sh" ]]; then
+      IRON_DOME_HOME="$candidate"
+      break
+    fi
+  done
+fi
+
+if [[ -z "$IRON_DOME_HOME" ]] || [[ ! -f "$IRON_DOME_HOME/src/iron-dome-core.sh" ]]; then
+  # Fail open — same policy as pre-commit.
+  exit 0
+fi
+
+source "$IRON_DOME_HOME/src/iron-dome-core.sh"
+_load_guards
+
+# Only run guards that make sense on the message, not on staged files.
+if _is_guard_enabled "ab_match" && type guard_ab_match &>/dev/null; then
+  guard_ab_match "$COMMIT_MSG_FILE" || true
+fi
+
+# Commit-msg advisories never block — exit 0 regardless.
+exit 0

@@ -79,6 +79,18 @@ cmd_init() {
     echo "  Installed: pre-push (branch policy, semaphore, orphan guard)"
   fi
 
+  # Install commit-msg hook
+  local commit_msg_src="${IRON_DOME_HOME}/src/hooks/commit-msg"
+  if [[ -f "$commit_msg_src" ]]; then
+    if [[ -f "${hooks_dir}/commit-msg" ]]; then
+      cp "${hooks_dir}/commit-msg" "${hooks_dir}/commit-msg.backup.$(date +%s)"
+      echo "  Backed up existing commit-msg hook"
+    fi
+    cp "$commit_msg_src" "${hooks_dir}/commit-msg"
+    chmod +x "${hooks_dir}/commit-msg"
+    echo "  Installed: commit-msg (ab_match advisory)"
+  fi
+
   # Copy default iron-dome.yml if not present
   if [[ ! -f "${repo_root}/iron-dome.yml" ]]; then
     if [[ -f "${IRON_DOME_HOME}/iron-dome.yml" ]]; then

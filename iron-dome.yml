@@ -294,6 +294,18 @@ guards:
     exclude_files: ["CHANGELOG.md", "*.md", "iron-dome.yml"]
 
 # =============================================================================
+# COMMIT-MSG GUARDS
+# =============================================================================
+
+  # --- AB# ↔ Branch Match Guard (ADVISORY) ---
+  # Warns when the commit references AB#N but the branch number is different.
+  # Catches "orphan commits on wrong branch" pattern at commit time.
+  # Never blocks — only emits a WARN on stderr.
+  ab_match:
+    enabled: true
+    severity: advisory
+
+# =============================================================================
 # PRE-PUSH GUARDS
 # =============================================================================
 

@@ -5,6 +5,44 @@ All notable changes to Iron Dome will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] — 2026-05-19
+
+### Added — 8 portable guards from EasyWay (Bug #2145)
+
+These guards originated as polyrepo-specific extensions in the EasyWay project
+(`/c/EW/easyway/infra/scripts/git-hooks/pre-commit`, 13 sections, S242-S519).
+They are now first-class Iron Dome modules — useful for any team running an
+AI-assisted development workflow with multiple agents and config drift risks.
+
+- **`mcp_json_duplicate`** (G22) — Blocks `.mcp.json` in subdirectories.
+  SSoT = root `.mcp.json` only. Prevents MCP server config fragmentation
+  across agent runtimes (Claude Code, Codex, Cursor, etc.).
+- **`wi_link`** (G26) — Auto-prepends work item reference (`#1234`) to
+  commit messages when the branch name contains a WI number. Cross-branch
+  staleness detection for `COMMIT_EDITMSG`.
+- **`inline_credentials`** (S285/S297) — Blocks `https://user:pass@host`
+  URLs. Better safe-pattern coverage than the secrets scan.
+- **`exec_bit`** (S519) — Blocks `.sh` files in executable paths committed
+  with mode 100644 (silent cron failures from Windows).
+- **`env_secrets_source`** — Blocks `source .env.secrets` patterns. Direct
+  sourcing fails silently if file missing.
+- **`worktree_discipline`** (G28) — Blocks feature-branch commits from the
+  base clone. Forces use of `git worktree` for `feat/`, `fix/`, etc.
+- **`git_garbage`** (S242) — Auto-fixes accidental `git status`/`git diff`
+  output baked into markdown/JSON/YAML files.
+- **`anti_hardcoded`** (G16 "Presa Elettrica") — Advisory audit for absolute
+  paths. Set `ANTI_HARDCODED_BLOCKING=1` to upgrade to blocking.
+
+### Changed
+
+- Schema version: `v2.1.0` → `v2.2.0`
+- All 8 new guards default **enabled** with per-guard env-var escape hatch
+- `iron-dome-core.sh` `_is_guard_enabled` default case extended
+
+### Backward compatibility
+
+Additive MINOR per semver. Existing v2.1.0 configs work unchanged.
+
 ## [2.1.0] — 2026-03-24
 
 ### Added

@@ -147,6 +147,34 @@ for file in $STAGED_FILES; do
   if _is_guard_enabled "untracked_imports" && type guard_untracked_imports &>/dev/null; then
     guard_untracked_imports "$file" || ERRORS=$((ERRORS + 1))
   fi
+
+  # === v2.2.0 EW-ported guards ===
+
+  # MCP config duplicate guard (G22)
+  if _is_guard_enabled "mcp_json_duplicate" && type guard_mcp_json_duplicate &>/dev/null; then
+    guard_mcp_json_duplicate "$file" || ERRORS=$((ERRORS + 1))
+  fi
+
+  # Inline credentials in URL guard (S285)
+  if _is_guard_enabled "inline_credentials" && type guard_inline_credentials &>/dev/null; then
+    guard_inline_credentials "$file" || ERRORS=$((ERRORS + 1))
+  fi
+
+  # Script exec bit guard (S519)
+  if _is_guard_enabled "exec_bit" && type guard_exec_bit &>/dev/null; then
+    guard_exec_bit "$file" || ERRORS=$((ERRORS + 1))
+  fi
+
+  # Env secrets source guard
+  if _is_guard_enabled "env_secrets_source" && type guard_env_secrets_source &>/dev/null; then
+    guard_env_secrets_source "$file" || ERRORS=$((ERRORS + 1))
+  fi
+
+  # Git garbage auto-fix guard (S242)
+  _is_guard_enabled "git_garbage" && type guard_git_garbage &>/dev/null && guard_git_garbage "$file" || true
+
+  # Anti-hardcoded audit (G16 Presa Elettrica — advisory by default)
+  _is_guard_enabled "anti_hardcoded" && type guard_anti_hardcoded &>/dev/null && guard_anti_hardcoded "$file" || true
 done
 
 # --- Repo-level guards (run once, not per file) ---
@@ -154,6 +182,16 @@ done
 # Lockfile sync guard (G-CI-6) — package.json without package-lock.json
 if _is_guard_enabled "lockfile_sync" && type guard_lockfile_sync &>/dev/null; then
   guard_lockfile_sync "$STAGED_FILES" || ERRORS=$((ERRORS + 1))
+fi
+
+# Worktree discipline guard (G28) — repo-level
+if _is_guard_enabled "worktree_discipline" && type guard_worktree_discipline_finalize &>/dev/null; then
+  guard_worktree_discipline_finalize || ERRORS=$((ERRORS + 1))
+fi
+
+# WI-Link auto-prepend guard (G26) — repo-level, runs LAST (modifies COMMIT_EDITMSG)
+if _is_guard_enabled "wi_link" && type guard_wi_link_finalize &>/dev/null; then
+  guard_wi_link_finalize || true
 fi
 
 # --- Evaluate results ---

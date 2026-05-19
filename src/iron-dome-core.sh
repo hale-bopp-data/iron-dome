@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-IRON_DOME_VERSION="2.1.0"
+IRON_DOME_VERSION="2.2.0"
 
 # --- Global state ---
 IRON_DOME_FINDINGS=()
@@ -455,10 +455,15 @@ _is_guard_enabled() {
   local val="${IRON_DOME_GUARD_ENABLED[$guard_name]:-}"
 
   # Default: secrets, conflict_markers, large_file, sensitive_files, branch_policy = on
+  # v2.2.0: added 8 EW-ported guards on by default (mcp_json_duplicate, wi_link,
+  #   inline_credentials, exec_bit, env_secrets_source, worktree_discipline,
+  #   git_garbage, anti_hardcoded). All have escape hatches via env var.
   # Everything else = off
   if [[ -z "$val" ]]; then
     case "$guard_name" in
       secrets|conflict_markers|large_file|sensitive_files|branch_policy|encoding|path_length) return 0 ;;
+      mcp_json_duplicate|wi_link|inline_credentials|exec_bit|env_secrets_source) return 0 ;;
+      worktree_discipline|git_garbage|anti_hardcoded) return 0 ;;
       *) return 1 ;;
     esac
   fi

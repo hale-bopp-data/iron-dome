@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-IRON_DOME_VERSION="2.2.0"
+IRON_DOME_VERSION="2.2.1"
 
 # --- Global state ---
 IRON_DOME_FINDINGS=()
@@ -100,10 +100,13 @@ _iron_dome_home() {
 
 # --- Finding reporter ---
 _report_finding() {
-  local type="$1"
-  local name="$2"
-  local file="$3"
-  local line="$4"
+  # AC3 fail-loud safety: tolerate underflow caller arity (Bug #2154).
+  # Pre-fix, missing $4 with `set -u` aborted the hook mid-scan -> silent
+  # false negative. Defaults keep semantics ({type, name, file, line:0}).
+  local type="${1:-UNKNOWN}"
+  local name="${2:-}"
+  local file="${3:-}"
+  local line="${4:-0}"
 
   local finding="${type} [${name}] in ${file}:${line}"
   IRON_DOME_FINDINGS+=("$finding")

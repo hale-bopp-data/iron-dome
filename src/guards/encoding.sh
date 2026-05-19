@@ -16,7 +16,7 @@ guard_encoding() {
   hex=$(xxd -l 3 -p "$file" 2>/dev/null || true)
 
   if [[ "$hex" == "efbbbf" ]]; then
-    _report_finding "encoding" "$file" "UTF-8 BOM detected — remove BOM (can break shell/YAML/JSON)"
+    _report_finding "encoding" "UTF-8 BOM detected — remove BOM (can break shell/YAML/JSON)" "$file" "1"
     IRON_DOME_OTHER_FOUND=$((IRON_DOME_OTHER_FOUND + 1))
     _guard_log "encoding" "blocking" "$file: UTF-8 BOM"
     return 1
@@ -27,7 +27,7 @@ guard_encoding() {
   hex2=$(xxd -l 2 -p "$file" 2>/dev/null || true)
 
   if [[ "$hex2" == "fffe" || "$hex2" == "feff" ]]; then
-    _report_finding "encoding" "$file" "UTF-16 BOM detected — convert to UTF-8"
+    _report_finding "encoding" "UTF-16 BOM detected — convert to UTF-8" "$file" "1"
     IRON_DOME_OTHER_FOUND=$((IRON_DOME_OTHER_FOUND + 1))
     _guard_log "encoding" "blocking" "$file: UTF-16 BOM"
     return 1

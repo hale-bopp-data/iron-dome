@@ -26,9 +26,16 @@ guard_worktree_discipline_finalize() {
     return 0
   fi
 
-  local git_dir
-  git_dir=$(git rev-parse --git-dir 2>/dev/null || echo "")
-  if [[ -f "$git_dir" ]]; then
+  # Worktree detection: in a linked worktree, the top-level `.git` is a FILE
+  # (pointer to the gitdir under the main repo's `.git/worktrees/`). In a base
+  # clone, `.git` is a directory. The previous check used `git rev-parse
+  # --git-dir` which always returns a directory path (worktree gitdir under
+  # main, or `.git` in base clone) — `-f` would always be false → false-positive
+  # block on legitimate worktree commits. Bug #2153 (S101): use toplevel `.git`
+  # type as the discriminator.
+  local top
+  top=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+  if [[ -n "$top" && -f "$top/.git" ]]; then
     echo "OK Worktree Discipline Guard passed (worktree detected)."
     return 0
   fi

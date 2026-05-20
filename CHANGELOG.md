@@ -5,6 +5,45 @@ All notable changes to Iron Dome will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.2] — 2026-05-20
+
+### Fixed — exec_bit self-consistency (Bug #2162)
+
+Mass `git update-index --chmod=+x` on 33 source files that were tracked
+at mode `100644` despite living in `EXEC_REQUIRED_PATHS` whitelisted
+by the `exec_bit` guard itself (introduced in v2.2.0, Bug #2145):
+
+- `src/guards/*.sh` — 29 files (every guard except `encoding.sh` and
+  `path-length.sh`, which were chmod'd as a side-effect of Bug #2154
+  in v2.2.1).
+- `src/hooks/{commit-msg,pre-commit,pre-push}` — 3 files. POSIX systems
+  that respect the executable bit could not run the hooks directly after
+  clone without `chmod +x` (cross-platform fragility).
+- `src/checks/check-inline-credentials.sh` — 1 file.
+
+### Why this is a self-consistency fix
+
+`exec_bit` (introduced v2.2.0) requires `100755` for `.sh` in
+`EXEC_REQUIRED_PATHS = (src/guards/ src/hooks/ src/checks/ ...)`. Iron
+Dome's own source tree violated its own rule because the files were
+created with Git's `100644` default on Windows before the guard
+existed (chicken-and-egg, see Bug #2162 description). The first commit
+through the guard after v2.2.0 (Bug #2154 fix in v2.2.1) exposed it.
+
+### Audit (AC2)
+
+```
+git ls-files --stage src/guards/ src/hooks/ src/checks/ | awk '$1 != "100755"' | wc -l
+0
+```
+
+### Smoke (AC5)
+
+Creating a new `src/guards/foo.sh` with mode `100644` and committing
+through the deployed v2.2.2 hooks must produce
+`FOUND: EXEC_BIT [Missing executable bit (mode 100644)]`
+followed by `BLOCKED`. See Bug #2162 AC5.
+
 ## [2.2.1] — 2026-05-19
 
 ### Fixed — `_report_finding` arg-order in `encoding` / `path-length` guards (Bug #2154)

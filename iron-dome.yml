@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=./schema/iron-dome.schema.json
 # Iron Dome — Configuration & Pattern Registry
 # https://github.com/hale-bopp-data/iron-dome
 #
@@ -405,6 +406,9 @@ whitelist:
   - file: "src/ci/secrets-scan-ci.py"
     guard: secrets
     reason: "Contains regex patterns for secret detection (not actual secrets)"
+  - file: "tests/*"
+    guard: secrets
+    reason: "Test fixtures contain fake credentials by design (true-positive coverage for the secrets guard) - PBI #428"
   # Examples:
   # - file: "tests/fixtures/fake-credentials.json"
   #   guard: sensitive_files

@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/hale-bopp-data/iron-dome/main/schema/iron-dome.override.schema.json",
+  "title": "Iron Dome Per-Repo Override",
+  "description": "Schema for .iron-dome.yml — per-repo overrides layered on iron-dome.yml. PBI #427.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "disabled_patterns": {
+      "type": "array",
+      "description": "Secret pattern NAMES to disable for this repo (must match a name in critical_patterns, e.g. Generic API Key).",
+      "items": { "type": "string" }
+    },
+    "additional_patterns": {
+      "type": "array",
+      "description": "Extra named secret patterns to add for this repo, on top of the defaults.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "pattern"],
+        "properties": {
+          "name": { "type": "string", "description": "Human-readable pattern label (shown in findings)." },
+          "pattern": { "type": "string", "description": "PCRE regex (passed to grep -P)." },
+          "severity": { "type": "string", "enum": ["critical", "high", "medium", "low"] }
+        }
+      }
+    }
+  }
+}

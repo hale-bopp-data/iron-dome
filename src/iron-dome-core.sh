@@ -345,6 +345,26 @@ _load_config() {
         fi
       fi
     done < "$override_file"
+
+    # additional_patterns: append custom named secret patterns (PBI #428)
+    local in_additional=false ap_name="" ap_pattern=""
+    while IFS= read -r line; do
+      line="${line%$'\r'}"
+      local atrim="${line#"${line%%[![:space:]]*}"}"
+      if [[ "$atrim" =~ ^additional_patterns: ]]; then in_additional=true; continue; fi
+      if $in_additional; then
+        if [[ "$atrim" =~ ^-[[:space:]]*name:[[:space:]]*(.+) ]]; then
+          if [[ -n "$ap_name" ]] && [[ -n "$ap_pattern" ]]; then IRON_DOME_SECRET_PATTERNS+=("${ap_name}|||${ap_pattern}"); fi
+          ap_name="$(printf '%s' "${BASH_REMATCH[1]}" | sed -E "s/^[\"']//; s/[\"' ]+\$//")"; ap_pattern=""
+        elif [[ "$atrim" =~ ^pattern:[[:space:]]*(.+) ]]; then
+          ap_pattern="$(printf '%s' "${BASH_REMATCH[1]}" | sed -E "s/^[\"']//; s/[\"' ]+\$//")"
+        elif [[ -n "$atrim" ]] && [[ "$atrim" =~ ^[a-z_]+: ]] && ! [[ "$atrim" =~ ^(name|pattern|severity): ]]; then
+          if [[ -n "$ap_name" ]] && [[ -n "$ap_pattern" ]]; then IRON_DOME_SECRET_PATTERNS+=("${ap_name}|||${ap_pattern}"); fi
+          ap_name=""; ap_pattern=""; in_additional=false
+        fi
+      fi
+    done < "$override_file"
+    if [[ -n "$ap_name" ]] && [[ -n "$ap_pattern" ]]; then IRON_DOME_SECRET_PATTERNS+=("${ap_name}|||${ap_pattern}"); fi
   fi
 }
 

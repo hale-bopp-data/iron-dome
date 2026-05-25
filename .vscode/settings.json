@@ -1,0 +1,6 @@
+{
+  "yaml.schemas": {
+    "./schema/iron-dome.schema.json": ["iron-dome.yml", "examples/*.yml"],
+    "./schema/iron-dome.override.schema.json": [".iron-dome.yml"]
+  }
+}

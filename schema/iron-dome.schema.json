@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/hale-bopp-data/iron-dome/main/schema/iron-dome.schema.json",
+  "title": "Iron Dome Configuration",
+  "description": "Schema for iron-dome.yml — the Iron Dome guard configuration & pattern registry. PBI #427.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Config schema version (semver).",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "guards": {
+      "type": "object",
+      "description": "Map of guard name -> guard configuration.",
+      "additionalProperties": { "$ref": "#/$defs/guard" }
+    },
+    "exclusions": { "$ref": "#/$defs/exclusions" },
+    "whitelist": {
+      "type": "array",
+      "description": "Per-file/per-pattern exceptions. Every entry MUST have a reason (auditable).",
+      "items": { "$ref": "#/$defs/whitelistEntry" }
+    },
+    "telemetry": { "$ref": "#/$defs/telemetry" }
+  },
+  "$defs": {
+    "severity": {
+      "type": "string",
+      "description": "Guard-level severity. blocking fails the commit/push; advisory only warns.",
+      "enum": ["blocking", "advisory"]
+    },
+    "patternSeverity": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low"]
+    },
+    "guard": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "description": "Whether this guard runs." },
+        "severity": { "$ref": "#/$defs/severity" },
+        "message": { "type": "string", "description": "Custom remediation message shown on violation." },
+        "file_types": { "type": "array", "description": "Glob list restricting the guard to matching file types.", "items": { "type": "string" } },
+        "critical_patterns": { "type": "array", "description": "Secrets guard: named regex patterns treated as findings.", "items": { "$ref": "#/$defs/namedPattern" } },
+        "safe_patterns": { "type": "array", "description": "Secrets guard: regexes that suppress false positives (e.g. ${ENV_VAR}).", "items": { "type": "string" } },
+        "max_size_kb": { "type": "integer", "description": "large_file guard: maximum file size in KB before blocking.", "minimum": 1 },
+        "exclude": { "type": "array", "description": "large_file guard: glob list of files exempt from the size check.", "items": { "type": "string" } },
+        "patterns": { "type": "array", "description": "sensitive_files guard: filename globs to block.", "items": { "type": "string" } },
+        "allow": { "type": "array", "description": "sensitive_files guard: filename globs explicitly permitted.", "items": { "type": "string" } },
+        "keywords": { "type": "array", "description": "debt guard: keywords tracked (TODO, FIXME, ...).", "items": { "type": "string" } },
+        "exclude_files": { "type": "array", "description": "debt guard: glob list of files exempt from keyword tracking.", "items": { "type": "string" } },
+        "protected_branches": { "type": "array", "description": "branch_policy guard: branches that reject direct push.", "items": { "type": "string" } },
+        "provider": { "type": "string", "description": "orphan guard: git provider for PR-state lookup.", "enum": ["auto", "github", "gitlab", "ado"] }
+      }
+    },
+    "namedPattern": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "pattern"],
+      "properties": {
+        "name": { "type": "string", "description": "Human-readable pattern label (shown in findings)." },
+        "pattern": { "type": "string", "description": "PCRE regex (passed to grep -P)." },
+        "severity": { "$ref": "#/$defs/patternSeverity" }
+      }
+    },
+    "exclusions": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Global file exclusions applied before any guard runs.",
+      "properties": {
+        "binary_extensions": { "type": "array", "items": { "type": "string" } },
+        "skip_patterns": { "type": "array", "description": "Path regexes to skip entirely (e.g. node_modules/).", "items": { "type": "string" } },
+        "max_file_size_kb": { "type": "integer", "description": "Skip scanning files larger than this (KB).", "minimum": 1 }
+      }
+    },
+    "whitelistEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "guard", "reason"],
+      "properties": {
+        "file": { "type": "string", "description": "Glob pattern for the file(s) the exception applies to." },
+        "guard": { "type": "string", "description": "Which guard to skip for this file (secrets, sensitive_files, ...)." },
+        "pattern": { "type": "string", "description": "Optional: narrow the exception to a single named secret pattern." },
+        "reason": { "type": "string", "description": "REQUIRED. Why this exception exists. No silent bypasses.", "minLength": 1 },
+        "approved_by": { "type": "string", "description": "Optional: who approved the exception." },
+        "expires": { "type": "string", "description": "Optional: ISO date after which the exception auto-reverts.", "format": "date" }
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "file": { "type": "string", "description": "Telemetry log path. Auto-detected by OS if unset." }
+      }
+    }
+  }
+}

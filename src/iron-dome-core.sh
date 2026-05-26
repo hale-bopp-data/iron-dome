@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-IRON_DOME_VERSION="2.2.2"
+IRON_DOME_VERSION="2.3.0"
 
 # --- Global state ---
 IRON_DOME_FINDINGS=()
@@ -291,6 +291,7 @@ _load_config() {
     [cors_wildcard]=true
     [webhook_no_auth]=false
     [eval_injection]=true
+    [coupling]=false
   )
 
   if [[ -z "$config_file" ]]; then
@@ -486,7 +487,7 @@ _is_guard_enabled() {
     case "$guard_name" in
       secrets|conflict_markers|large_file|sensitive_files|branch_policy|encoding|path_length) return 0 ;;
       mcp_json_duplicate|wi_link|inline_credentials|exec_bit|env_secrets_source) return 0 ;;
-      worktree_discipline|git_garbage|anti_hardcoded) return 0 ;;
+      worktree_discipline|git_garbage|anti_hardcoded|coupling) return 0 ;;
       *) return 1 ;;
     esac
   fi

@@ -184,6 +184,11 @@ if _is_guard_enabled "lockfile_sync" && type guard_lockfile_sync &>/dev/null; th
   guard_lockfile_sync "$STAGED_FILES" || ERRORS=$((ERRORS + 1))
 fi
 
+# Coupling guard (if changed A, must change B) — repo-level, advisory
+if _is_guard_enabled "coupling" && type guard_coupling &>/dev/null; then
+  guard_coupling "$STAGED_FILES" || ERRORS=$((ERRORS + 1))
+fi
+
 # Worktree discipline guard (G28) — repo-level
 if _is_guard_enabled "worktree_discipline" && type guard_worktree_discipline_finalize &>/dev/null; then
   guard_worktree_discipline_finalize || ERRORS=$((ERRORS + 1))

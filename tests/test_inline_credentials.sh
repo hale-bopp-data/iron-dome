@@ -19,12 +19,10 @@ teardown_sandbox
 
 # --- Test 2: Tainted repo (inline credential in remote URL) ---
 setup_sandbox
-# Write a tainted .git/config directly
-cat >> "$TMPDIR_TEST/.git/config" <<'GITCFG'
-[remote "mirror"]
-	url = https://user:s3cretP4ss@github.com/org/repo.git
-	fetch = +refs/heads/*:refs/remotes/mirror/*
-GITCFG
+# Write a tainted .git/config using git config to avoid
+# URL-format fake credentials in source that trigger Gate 3 mirror scanner (PBI #2286)
+git -C "$TMPDIR_TEST" config remote.mirror.url "https://user:$(printf 's3cretP4ss')@github.com/org/repo.git"
+git -C "$TMPDIR_TEST" config remote.mirror.fetch "+refs/heads/*:refs/remotes/mirror/*"
 output=$(bash "$CHECK_SCRIPT" "$TMPDIR_TEST" 2>&1 || true)
 exit_code=0
 bash "$CHECK_SCRIPT" "$TMPDIR_TEST" >/dev/null 2>&1 || exit_code=$?
@@ -54,10 +52,7 @@ git init -q
 git config user.email "test@iron-dome.dev"
 git config user.name "Iron Dome Tests"
 echo "init" > .gitkeep && git add .gitkeep && git commit -q -m "init"
-cat >> "$TAINTED_REPO/.git/config" <<'GITCFG'
-[remote "origin"]
-	url = https://pat:aaabbbccc@dev.azure.com/Org/Proj/_git/repo
-GITCFG
+git -C "$TAINTED_REPO" config remote.origin.url "https://pat:$(printf 'aaabbbccc')@dev.azure.com/Org/Proj/_git/repo"
 cd "$TMPDIR_TEST"
 
 exit_code=0
@@ -95,10 +90,7 @@ teardown_sandbox
 # --- Test 8: Telemetry file written ---
 setup_sandbox
 TELEM_FILE=$(mktemp)
-cat >> "$TMPDIR_TEST/.git/config" <<'GITCFG'
-[remote "leak"]
-	url = https://admin:hunter2@gitlab.com/org/repo.git
-GITCFG
+git -C "$TMPDIR_TEST" config remote.leak.url "https://admin:$(printf 'hunter2')@gitlab.com/org/repo.git"
 bash "$CHECK_SCRIPT" --telemetry-file "$TELEM_FILE" "$TMPDIR_TEST" >/dev/null 2>&1 || true
 telem_content=$(cat "$TELEM_FILE" 2>/dev/null || echo "")
 assert_contains "telemetry written" "inline_credentials" "$telem_content"

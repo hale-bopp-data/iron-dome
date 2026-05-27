@@ -1,0 +1,37 @@
+# Iron Dome — CI Pipeline
+# Security guardrail: lint, test, GitHub mirror
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+pool:
+  name: Default
+
+variables:
+  - group: EasyWay-Secrets
+
+stages:
+  - stage: GitHubMirror
+    displayName: 'GitHub Mirror (publish main+develop -> github)'
+    condition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.SourceBranch'], 'refs/heads/develop')))
+    jobs:
+      - job: MirrorToGitHub
+        displayName: 'Mirror to GitHub (canonical mirror-github.sh)'
+        pool:
+          name: Default
+        steps:
+          - checkout: self
+            fetchDepth: 0
+          - script: bash /opt/easyway/scripts/ci/mirror-github.sh hale-bopp-iron-dome
+            displayName: 'Mirror to GitHub'
+            failOnStderr: true
+            continueOnError: false

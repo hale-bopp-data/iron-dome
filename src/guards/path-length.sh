@@ -12,7 +12,7 @@ guard_path_length() {
   local len=${#file}
 
   if [[ $len -ge $IRON_DOME_MAX_PATH ]]; then
-    _report_finding "path-length" "$file" "Path too long (${len} chars, max ${IRON_DOME_MAX_PATH}) — will fail on Windows"
+    _report_finding "path-length" "Path too long (${len} chars, max ${IRON_DOME_MAX_PATH}) — will fail on Windows" "$file" "0"
     IRON_DOME_OTHER_FOUND=$((IRON_DOME_OTHER_FOUND + 1))
     _guard_log "path-length" "blocking" "$file: ${len} chars (max ${IRON_DOME_MAX_PATH})"
     return 1

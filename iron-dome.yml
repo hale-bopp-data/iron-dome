@@ -1,12 +1,26 @@
+# yaml-language-server: $schema=./schema/iron-dome.schema.json
 # Iron Dome — Configuration & Pattern Registry
 # https://github.com/hale-bopp-data/iron-dome
 #
 # This is the default configuration. Copy to your repo root and customize.
 # Per-repo overrides: create .iron-dome.yml in your repo root.
 #
-# Schema v2.1.0 (S285 — URL embedded creds + Forgejo password + sensitive file expansion)
+# Schema v2.3.0 (added Coupling Guard — if changed A, must change B)
+#
+# v2.3.0 additions:
+#   - coupling: enforce "if changed A, must change B" rules (opt-in, advisory)
+#
+# v2.2.0 additions (all default enabled, with escape hatch env vars):
+#   - mcp_json_duplicate: G22 — block .mcp.json in subdirs (SSoT root only)
+#   - wi_link: G26 — auto-prepend work item # from branch name to commit msg
+#   - inline_credentials: S285/S297 — block https://user:pass@host in URLs
+#   - exec_bit: S519 — block .sh scripts in exec paths with mode 100644
+#   - env_secrets_source: PBI #1364 — block `source .env.secrets` patterns
+#   - worktree_discipline: G28 — block feature commits from base clone
+#   - git_garbage: S242 — auto-fix git output baked in markdown/json
+#   - anti_hardcoded: G16 — advisory audit for hardcoded paths (Presa Elettrica)
 
-version: "2.1.0"
+version: "2.3.0"
 
 # =============================================================================
 # PRE-COMMIT GUARDS
@@ -285,6 +299,21 @@ guards:
     severity: blocking
     message: "Never use eval/Function/vm.run* with dynamic input. Use safe alternatives."
 
+  # --- Coupling Guard (advisory) ---
+  # Enforces "if changed A, must change B" coupling rules.
+  # Example: DB schema changes require documentation updates.
+  # Opt-in: rules are project-specific.
+  coupling:
+    enabled: false  # opt-in
+    severity: advisory
+    rules:
+      # - if_changed: "src/db/**"
+      #   must_change: ["docs/**", "CHANGELOG.md"]
+      #   reason: "DB schema changes require documentation updates"
+      # - if_changed: "src/api/**"
+      #   must_change: ["docs/api/**"]
+      #   reason: "API changes require API docs updates"
+
   # --- Debt Guard (advisory) ---
   # Tracks new TODO/FIXME/HACK introduced in commits.
   debt:
@@ -383,9 +412,21 @@ exclusions:
 #   - expires: (optional) ISO date — exception auto-reverts after this date
 
 whitelist:
+  - file: "iron-dome.yml"
+    guard: cors_wildcard
+    reason: "Config file describes the CORS wildcard pattern to detect, not actual CORS code"
+  - file: "iron-dome.yml"
+    guard: secrets
+    reason: "Config file contains regex patterns for secret detection (not actual secrets)"
+  - file: "CHANGELOG.md"
+    guard: secrets
+    reason: "Documentation mentions secret patterns as part of release notes"
   - file: "src/ci/secrets-scan-ci.py"
     guard: secrets
     reason: "Contains regex patterns for secret detection (not actual secrets)"
+  - file: "tests/*"
+    guard: secrets
+    reason: "Test fixtures contain fake credentials by design (true-positive coverage for the secrets guard) - PBI #428"
   # Examples:
   # - file: "tests/fixtures/fake-credentials.json"
   #   guard: sensitive_files

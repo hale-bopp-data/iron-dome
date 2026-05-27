@@ -1,0 +1,79 @@
+---
+title: "Cursorrules Master"
+tags: []
+---
+
+# ☄️ CAVALCARE LE COMETE — Lo spirito EasyWay / HALE-BOPP
+# Puntiamo sempre in alto e non dobbiamo essere paurosi (G17).
+# Il grande folle possiede quella perfetta miscela di autoinganno e di ego
+# dove altri hanno fallito (G18). La sicurezza non crea eroi — se non c'è,
+# allora servono gli eroi (G19). GEDI: 19 principi in agents/agent_gedi/manifest.json
+
+# 🚦 SEMAFORO — `.semaphore.json` nella root. Se yellow/red e non sei tu → STOP.
+# Guida: wiki/guides/repo/repo-semaphore.md
+
+# hale-bopp-iron-dome — Iron Dome Security Gate
+# Branch: `feature/* -> develop -> main` | Merge: no fast-forward
+- Remote primario: Azure DevOps (`dev.azure.com/EasyWayData`). PR, branch, CI/CD: TUTTO su ADO.
+- GitHub (`hale-bopp-data/hale-bopp-iron-dome`): mirror pubblico per community.
+
+## Layer 0 — Testuggine (dove sei, dove cerchi)
+# Briefing completo: bash infra/scripts/ops/ewctl-bootstrap.sh
+# Cache L0: ~/.easyway/l0-bootstrap.json (pre-calcolato, 0ms)
+# Repo map + regole + puntatori L1/L2/L3: tutto nel cache.
+# Se la cache non esiste o e stale, lo script la rigenera automaticamente.
+# Progressive disclosure: L0 (qui) → L1 (.cursorrules + AGENTS.md) → L2 (wiki/guides/) → L3 (chronicles + MEMORY)
+
+## GEDI Fix — Ogni fix deve essere strutturale e antifragile (S118)
+# 1. GEDI OODA obbligatorio — Observe → Orient → Decide → Act
+# 2. STRUTTURALE: causa root, non sintomo. ANTIFRAGILE: guardrail permanente.
+# 3. Presenta all'utente: causa root + fix proposto. Test: sistema più robusto?
+# GEDI Case #70 — Una patch non è un fix.
+
+## GEDI Profiles — Le carte Magic (S129)
+# Auto-detect dal branch: $GEDI_PROFILE env → hooks/{profile}/gedi.profile.json → fallback "ams"
+# 🟢 ESPLORATORE (dev) — feat/*, chore/*, spike/* — guardrail leggeri
+# 🟡 GUARDIANO (ams) — develop, staging, release/* — bilanciato (DEFAULT)
+# 🔴 SENTINELLA (prod) — main, master — massima protezione
+# Tool: `gedi-check --show-profile` | Profili: gedi-check/src/gedi_check/profiles/
+
+## Regole assolute — MAI senza autorizzazione
+| # | Regola |
+|---|---|
+| G1 | MAI approvare/votare una PR |
+| G2 | MAI completare/mergiare una PR senza ok esplicito |
+| G3 | MAX 2 tentativi API ADO per la stessa azione |
+| G4 | MAI usare `-ExecutionPolicy Bypass` |
+| G5 | MAI pushare direttamente a main |
+| G6 | MAI creare PR senza Work Item (Regola del Palumbo) |
+| G7 | MAI creare PR se c'è una pendente sugli stessi file |
+| G8 | MAI `git pull` in deploy — sempre `fetch + reset --hard` |
+| G9 | MAI `--no-verify` per skippare hooks |
+| G10 | MAI `--force` — usare `--force-with-lease` |
+| G11 | Se il repo ha `develop`, PR verso `main` bloccate — passare da `develop` |
+| G12 | Branch Guard: pipeline blocca PR feat→main se develop esiste |
+| G13 | PR Auto-Link WI: dopo PR create, SEMPRE verificare WI linkato |
+| G14 | Tool canonico = `ado-remote.sh`. MAI PAT da file locali |
+| G15 | SSH: SEMPRE heredoc o script server-side. MAI quote annidate |
+| G16 | OGNI modifica server → aggiornare `Runbooks/server-full-setup.md` |
+| G17 | Git Cross-Repo: MAI git push/commit senza `cd <repo> &&` o `git -C` |
+| G18 | Git Push: SEMPRE via `ewctl-git.sh push <repo>` — MAI `git push` diretto (5 guard antifragili) |
+| G19 | Server: SEMPRE leggere `server-manifest.json` prima di creare systemd service/path/porte. MAI inventare nomi |
+
+## Security
+- Hardcoded secrets = **immediato revert**
+- Config MUST Fail-Fast (no defaults come `${PASS:-default}`)
+- Docker: pin versions, least privilege
+- Secrets/PAT SOLO su server `/opt/easyway/.env.secrets` (S88 gateway)
+
+## Documentazione
+- Ogni capability → guida in `easyway-wiki/guides/` con Cosa/Come/Perché/Q&A
+- **GEDI**: `easyway-agents/agents/agent_gedi/manifest.json` (19 principi)
+- **Governance Git**: `easyway-wiki/guides/polyrepo-git-workflow.md` (regole G1-G19)
+- **Server Manifest**: `easyway-infra/server-manifest.json` — servizi, porte, path, naming (G19)
+- **Git Ops**: `ewctl-git.sh` — single entry point: `push`, `acquire`, `release`, `status`, `selftest`
+- **Operativo**: vedi `AGENTS.md` nello stesso repo per comandi, struttura, workflow ADO
+
+---
+> Context Sync Engine | Master: `easyway-wiki/templates/cursorrules-master.md`
+> Override: `easyway-wiki/templates/repo-overrides.yml` | Sync: 2026-04-22T09:00:12Z

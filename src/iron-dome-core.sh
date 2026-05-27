@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-IRON_DOME_VERSION="2.1.0"
+IRON_DOME_VERSION="2.3.0"
 
 # --- Global state ---
 IRON_DOME_FINDINGS=()
@@ -100,10 +100,13 @@ _iron_dome_home() {
 
 # --- Finding reporter ---
 _report_finding() {
-  local type="$1"
-  local name="$2"
-  local file="$3"
-  local line="$4"
+  # AC3 fail-loud safety: tolerate underflow caller arity (Bug #2154).
+  # Pre-fix, missing $4 with `set -u` aborted the hook mid-scan -> silent
+  # false negative. Defaults keep semantics ({type, name, file, line:0}).
+  local type="${1:-UNKNOWN}"
+  local name="${2:-}"
+  local file="${3:-}"
+  local line="${4:-0}"
 
   local finding="${type} [${name}] in ${file}:${line}"
   IRON_DOME_FINDINGS+=("$finding")
@@ -288,6 +291,7 @@ _load_config() {
     [cors_wildcard]=true
     [webhook_no_auth]=false
     [eval_injection]=true
+    [coupling]=false
   )
 
   if [[ -z "$config_file" ]]; then
@@ -342,6 +346,26 @@ _load_config() {
         fi
       fi
     done < "$override_file"
+
+    # additional_patterns: append custom named secret patterns (PBI #428)
+    local in_additional=false ap_name="" ap_pattern=""
+    while IFS= read -r line; do
+      line="${line%$'\r'}"
+      local atrim="${line#"${line%%[![:space:]]*}"}"
+      if [[ "$atrim" =~ ^additional_patterns: ]]; then in_additional=true; continue; fi
+      if $in_additional; then
+        if [[ "$atrim" =~ ^-[[:space:]]*name:[[:space:]]*(.+) ]]; then
+          if [[ -n "$ap_name" ]] && [[ -n "$ap_pattern" ]]; then IRON_DOME_SECRET_PATTERNS+=("${ap_name}|||${ap_pattern}"); fi
+          ap_name="$(printf '%s' "${BASH_REMATCH[1]}" | sed -E "s/^[\"']//; s/[\"' ]+\$//")"; ap_pattern=""
+        elif [[ "$atrim" =~ ^pattern:[[:space:]]*(.+) ]]; then
+          ap_pattern="$(printf '%s' "${BASH_REMATCH[1]}" | sed -E "s/^[\"']//; s/[\"' ]+\$//")"
+        elif [[ -n "$atrim" ]] && [[ "$atrim" =~ ^[a-z_]+: ]] && ! [[ "$atrim" =~ ^(name|pattern|severity): ]]; then
+          if [[ -n "$ap_name" ]] && [[ -n "$ap_pattern" ]]; then IRON_DOME_SECRET_PATTERNS+=("${ap_name}|||${ap_pattern}"); fi
+          ap_name=""; ap_pattern=""; in_additional=false
+        fi
+      fi
+    done < "$override_file"
+    if [[ -n "$ap_name" ]] && [[ -n "$ap_pattern" ]]; then IRON_DOME_SECRET_PATTERNS+=("${ap_name}|||${ap_pattern}"); fi
   fi
 }
 
@@ -455,10 +479,15 @@ _is_guard_enabled() {
   local val="${IRON_DOME_GUARD_ENABLED[$guard_name]:-}"
 
   # Default: secrets, conflict_markers, large_file, sensitive_files, branch_policy = on
+  # v2.2.0: added 8 EW-ported guards on by default (mcp_json_duplicate, wi_link,
+  #   inline_credentials, exec_bit, env_secrets_source, worktree_discipline,
+  #   git_garbage, anti_hardcoded). All have escape hatches via env var.
   # Everything else = off
   if [[ -z "$val" ]]; then
     case "$guard_name" in
       secrets|conflict_markers|large_file|sensitive_files|branch_policy|encoding|path_length) return 0 ;;
+      mcp_json_duplicate|wi_link|inline_credentials|exec_bit|env_secrets_source) return 0 ;;
+      worktree_discipline|git_garbage|anti_hardcoded|coupling) return 0 ;;
       *) return 1 ;;
     esac
   fi

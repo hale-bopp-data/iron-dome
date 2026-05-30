@@ -62,9 +62,11 @@ def run_pip_audit(repo_root: Path) -> tuple[int, list[str]]:
                         messages.append(f"  {result.stderr.strip()[:200]}")
 
     except FileNotFoundError:
-        messages.append("  [INFO] pip-audit not installed — install with: pip install pip-audit")
+        messages.append("  [FAIL] pip-audit not installed — tool required for security audit")
+        high_count = 1
     except subprocess.TimeoutExpired:
-        messages.append("  [WARNING] pip-audit timed out after 120s")
+        messages.append("  [FAIL] pip-audit timed out after 120s")
+        high_count = 1
 
     return high_count, messages
 
@@ -104,9 +106,11 @@ def run_npm_audit(repo_root: Path) -> tuple[int, list[str]]:
                 pass
 
     except FileNotFoundError:
-        pass  # npm not installed, skip
+        messages.append("  [FAIL] npm not installed — tool required for security audit")
+        high_count = 1
     except subprocess.TimeoutExpired:
-        messages.append("  [WARNING] npm audit timed out after 120s")
+        messages.append("  [FAIL] npm audit timed out after 120s")
+        high_count = 1
 
     return high_count, messages
 

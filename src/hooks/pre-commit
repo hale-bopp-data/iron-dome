@@ -35,7 +35,7 @@ fi
 if [[ -z "$IRON_DOME_HOME" ]] || [[ ! -f "$IRON_DOME_HOME/src/iron-dome-core.sh" ]]; then
   echo "Iron Dome: core not found. Run 'iron-dome doctor' to diagnose."
   echo "Set IRON_DOME_HOME or reinstall: https://github.com/hale-bopp-data/iron-dome"
-  exit 0  # Fail open — don't block if Iron Dome is not installed
+  exit 2  # SEC-S218: fail-CLOSED — block if Iron Dome is not installed
 fi
 
 source "$IRON_DOME_HOME/src/iron-dome-core.sh"

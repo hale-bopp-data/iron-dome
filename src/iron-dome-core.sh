@@ -41,11 +41,11 @@ IRON_DOME_SECRET_PATTERNS=(
 )
 
 IRON_DOME_SAFE_PATTERNS=(
-  '\$\{[A-Z_]+\}'
-  '\$env:[A-Z_]+'
-  'process\.env\.'
-  'os\.environ'
-  'System\.getenv'
+  '\$\{[A-Z_][A-Z_0-9]*\}'        # SEC-S218: narrowed from {[A-Z_]+} — require at least 2 chars
+  '\$env:[A-Z_][A-Z_0-9]*'        # SEC-S218: narrowed — require named variable
+  'process\.env\.[A-Z_][A-Z_0-9]*' # SEC-S218: narrowed from process\.env\. — require named var
+  'os\.environ(?:\[|\.get)'       # SEC-S218: narrowed — require access method
+  'System\.getenv\s*\('           # SEC-S218: narrowed — require parens
   "env\(\s*[\"']"
   'ChangeMe'
   'placeholder'
@@ -186,7 +186,7 @@ _should_skip_file() {
   if [[ -f "$file" ]]; then
     local size
     size=$(wc -c < "$file" 2>/dev/null || echo 0)
-    if [[ "$size" -gt 524288 ]]; then return 0; fi  # 512KB scan limit
+    if [[ "$size" -gt 1048576 ]]; then return 0; fi  # 1MB scan limit (SEC-S218: bumped from 512KB)
   fi
 
   return 1

@@ -20,13 +20,20 @@ tags: []
 ## Comandi rapidi
 ```bash
 ewctl commit
-./scripts/run-checks.sh
+./iron-dome scan
 ```
 
 ## Struttura
 ```text
-scripts/         # Guard scripts
-docs/            # Security documentation
+src/
+  checks/           # Inline credential checks
+  ci/               # CI validators
+  guards/           # Security guard scripts (~30)
+  hooks/            # Git hooks
+examples/           # Example configurations
+schema/             # JSON Schema definitions
+tests/              # Test suite
+iron-dome           # CLI entry point
 ```
 
 ## Regole specifiche iron-dome

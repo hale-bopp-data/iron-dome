@@ -2,7 +2,13 @@
 # ============================================================================
 # Iron Dome Scanner — File scanner for CI and manual use
 # ============================================================================
-# Scans files for secrets, conflict markers, and policy violations.
+# Guards: secrets, conflict markers, docker run, large file, sensitive file,
+#         encoding, path length, debt (advisory),
+#         local links (G-CI-3), untracked imports (G-CI-5), lockfile sync (G-CI-6),
+#         exec injection (S244), innerHTML XSS (S244), db credentials (S244),
+#         docker socket (S244), bind all interfaces (S244),
+#         jwt dev bypass (S244), cors wildcard (S244), webhook no auth (S244),
+#         eval injection (S244).
 # Used by: CI pipelines (server-side), `iron-dome scan` CLI command.
 #
 # Usage:
@@ -79,32 +85,163 @@ main() {
 
   local file_count=0
   local scanned_count=0
+  local ERRORS=0
 
   while IFS= read -r file; do
     [[ -z "$file" ]] && continue
     file_count=$((file_count + 1))
 
+    [[ ! -f "$file" ]] && continue
+
+    # Sensitive file guard (checks filename, not content)
+    if _is_guard_enabled "sensitive_files" && type guard_sensitive_files &>/dev/null; then
+      guard_sensitive_files "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # Large file guard
+    if _is_guard_enabled "large_file" && type guard_large_file &>/dev/null; then
+      guard_large_file "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # Path length guard (PBI #516)
+    if _is_guard_enabled "path_length" && type guard_path_length &>/dev/null; then
+      guard_path_length "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # Encoding guard (PBI #515)
+    if _is_guard_enabled "encoding" && type guard_encoding &>/dev/null; then
+      guard_encoding "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # Skip binary/large for content scanning
     if _should_skip_file "$file"; then
       $VERBOSE && echo "  SKIP: $file"
       continue
     fi
 
-    [[ ! -f "$file" ]] && continue
-
     $VERBOSE && echo "  SCAN: $file"
     scanned_count=$((scanned_count + 1))
 
     # Run enabled guards (respects iron-dome.yml config)
+
+    # Secrets scan
     _is_guard_enabled "secrets" && guard_secrets "$file" || true
+
+    # Conflict markers
     _is_guard_enabled "conflict_markers" && guard_conflict_markers "$file" || true
+
+    # Docker run guard
     _is_guard_enabled "docker_run" && type guard_docker_run &>/dev/null && guard_docker_run "$file" || true
-    _is_guard_enabled "large_file" && type guard_large_file &>/dev/null && guard_large_file "$file" || true
-    _is_guard_enabled "sensitive_files" && type guard_sensitive_files &>/dev/null && guard_sensitive_files "$file" || true
+
+    # Command injection guard (execSync with interpolation)
+    if _is_guard_enabled "exec_injection" && type guard_exec_injection &>/dev/null; then
+      guard_exec_injection "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # XSS guard (innerHTML with dynamic content)
+    if _is_guard_enabled "innerhtml_xss" && type guard_innerhtml_xss &>/dev/null; then
+      guard_innerhtml_xss "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # Database credentials guard (hardcoded connection strings)
+    if _is_guard_enabled "db_credentials" && type guard_db_credentials &>/dev/null; then
+      guard_db_credentials "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # Docker socket guard (docker.sock mounts)
+    if _is_guard_enabled "docker_socket" && type guard_docker_socket &>/dev/null; then
+      guard_docker_socket "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # Bind all interfaces guard (0.0.0.0 exposure)
+    if _is_guard_enabled "bind_all" && type guard_bind_all &>/dev/null; then
+      guard_bind_all "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # JWT dev bypass guard (auth disabled by NODE_ENV)
+    if _is_guard_enabled "jwt_dev_bypass" && type guard_jwt_dev_bypass &>/dev/null; then
+      guard_jwt_dev_bypass "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # CORS wildcard guard
+    if _is_guard_enabled "cors_wildcard" && type guard_cors_wildcard &>/dev/null; then
+      guard_cors_wildcard "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # Webhook without auth guard
+    if _is_guard_enabled "webhook_no_auth" && type guard_webhook_no_auth &>/dev/null; then
+      guard_webhook_no_auth "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # eval/Function injection guard
+    if _is_guard_enabled "eval_injection" && type guard_eval_injection &>/dev/null; then
+      guard_eval_injection "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # Debt guard (advisory — never blocks)
     _is_guard_enabled "debt" && type guard_debt &>/dev/null && guard_debt "$file" || true
-    _is_guard_enabled "encoding" && type guard_encoding &>/dev/null && guard_encoding "$file" || true
-    _is_guard_enabled "path_length" && type guard_path_length &>/dev/null && guard_path_length "$file" || true
+
+    # Local links guard (G-CI-3) — checks package-lock.json for symlinks
+    if _is_guard_enabled "local_links" && type guard_local_links &>/dev/null; then
+      guard_local_links "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # Untracked imports guard (G-CI-5) — checks relative imports to untracked files
+    if _is_guard_enabled "untracked_imports" && type guard_untracked_imports &>/dev/null; then
+      guard_untracked_imports "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # === v2.2.0 EW-ported guards ===
+
+    # MCP config duplicate guard (G22)
+    if _is_guard_enabled "mcp_json_duplicate" && type guard_mcp_json_duplicate &>/dev/null; then
+      guard_mcp_json_duplicate "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # Inline credentials in URL guard (S285)
+    if _is_guard_enabled "inline_credentials" && type guard_inline_credentials &>/dev/null; then
+      guard_inline_credentials "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # Script exec bit guard (S519)
+    if _is_guard_enabled "exec_bit" && type guard_exec_bit &>/dev/null; then
+      guard_exec_bit "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # Env secrets source guard
+    if _is_guard_enabled "env_secrets_source" && type guard_env_secrets_source &>/dev/null; then
+      guard_env_secrets_source "$file" || ERRORS=$((ERRORS + 1))
+    fi
+
+    # Git garbage auto-fix guard (S242)
+    _is_guard_enabled "git_garbage" && type guard_git_garbage &>/dev/null && guard_git_garbage "$file" || true
+
+    # Anti-hardcoded audit (G16 Presa Elettrica — advisory by default)
+    _is_guard_enabled "anti_hardcoded" && type guard_anti_hardcoded &>/dev/null && guard_anti_hardcoded "$file" || true
 
   done <<< "$files"
+
+  # --- Repo-level guards (run once, not per file) ---
+
+  # Lockfile sync guard (G-CI-6) — package.json without package-lock.json
+  if _is_guard_enabled "lockfile_sync" && type guard_lockfile_sync &>/dev/null; then
+    guard_lockfile_sync "$files" || ERRORS=$((ERRORS + 1))
+  fi
+
+  # Coupling guard (if changed A, must change B) — repo-level, advisory
+  if _is_guard_enabled "coupling" && type guard_coupling &>/dev/null; then
+    guard_coupling "$files" || ERRORS=$((ERRORS + 1))
+  fi
+
+  # Worktree discipline guard (G28) — repo-level
+  if _is_guard_enabled "worktree_discipline" && type guard_worktree_discipline_finalize &>/dev/null; then
+    guard_worktree_discipline_finalize || ERRORS=$((ERRORS + 1))
+  fi
+
+  # WI-Link auto-prepend guard (G26) — repo-level, runs LAST (modifies COMMIT_EDITMSG)
+  if _is_guard_enabled "wi_link" && type guard_wi_link_finalize &>/dev/null; then
+    guard_wi_link_finalize || true
+  fi
 
   echo ""
   echo "Files in changeset: $file_count"
@@ -113,7 +250,7 @@ main() {
   _print_report
 
   # Log to telemetry
-  local total_blocking=$((IRON_DOME_SECRETS_FOUND + IRON_DOME_CONFLICTS_FOUND + IRON_DOME_DOCKER_FOUND + IRON_DOME_OTHER_FOUND))
+  local total_blocking=$((IRON_DOME_SECRETS_FOUND + IRON_DOME_CONFLICTS_FOUND + IRON_DOME_DOCKER_FOUND + IRON_DOME_OTHER_FOUND + ERRORS))
 
   if [[ $total_blocking -gt 0 ]]; then
     _guard_log "scanner" "blocking" "${total_blocking} blocking finding(s)"

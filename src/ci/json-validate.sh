@@ -27,12 +27,15 @@ errors=0
 echo "Iron Dome CI: JSON Validate (${#files[@]} file(s))"
 
 for f in "${files[@]}"; do
-  if python3 -c "import json; json.load(open('$f'))" 2>/dev/null; then
+  # SEC #2761: pass the filename via argv, never interpolate it into the
+  # Python source. A repo-controlled name like `'); import os; ... #.json`
+  # would otherwise break out of the string and run as code on the CI agent.
+  if python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f" 2>/dev/null; then
     : # silent on success
   else
     echo "  FAIL  $f"
     # Show the error
-    python3 -c "import json; json.load(open('$f'))" 2>&1 | tail -1 | sed 's/^/        /'
+    python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f" 2>&1 | tail -1 | sed 's/^/        /'
     errors=$((errors + 1))
   fi
 done

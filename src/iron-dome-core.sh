@@ -62,6 +62,17 @@ IRON_DOME_SAFE_PATTERNS=(
 )
 
 IRON_DOME_DISABLED_PATTERNS=()
+
+# SEC #2761 — Trust boundary. Guards that the IN-REPO config (the working tree
+# being scanned) may NOT disable. Only a trusted config sourced from
+# IRON_DOME_HOME — outside the scanned tree — can turn these off. Rationale:
+# an attacker with PR access must not be able to disable secret detection on
+# the same changeset that plants the secret. Set IRON_DOME_ALLOW_REPO_OVERRIDE=1
+# to opt back in for local development (never in CI).
+IRON_DOME_CRITICAL_GUARDS=(secrets sensitive_files db_credentials inline_credentials)
+# Set by _load_config: true when the active config came from a trusted source.
+IRON_DOME_CONFIG_TRUSTED=false
+
 IRON_DOME_PROTECTED_BRANCHES=("main" "master")
 IRON_DOME_MAX_FILE_KB=1024
 IRON_DOME_LARGE_FILE_EXCLUDE=()
@@ -259,14 +270,21 @@ declare -A IRON_DOME_GUARD_ENABLED
 _load_config() {
   # Find config file: repo root > IRON_DOME_HOME > defaults
   local config_file=""
-  local repo_root
+  local config_trusted=false
+  local repo_root home_dir
   repo_root=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
+  home_dir="$(_iron_dome_home)"
 
   if [[ -f "${repo_root}/iron-dome.yml" ]]; then
     config_file="${repo_root}/iron-dome.yml"
-  elif [[ -f "$(_iron_dome_home)/iron-dome.yml" ]]; then
-    config_file="$(_iron_dome_home)/iron-dome.yml"
+    # SEC #2761 — the repo-root config lives in the scanned tree, so it is
+    # untrusted UNLESS iron-dome home IS that repo (scanning its own repo).
+    if [[ "$home_dir" -ef "$repo_root" ]]; then config_trusted=true; fi
+  elif [[ -f "${home_dir}/iron-dome.yml" ]]; then
+    config_file="${home_dir}/iron-dome.yml"
+    config_trusted=true
   fi
+  IRON_DOME_CONFIG_TRUSTED=$config_trusted
 
   # Defaults: what's ON if no config file exists
   IRON_DOME_GUARD_ENABLED=(
@@ -328,9 +346,29 @@ _load_config() {
     fi
   done < "$config_file"
 
+  # SEC #2761 — untrusted in-repo config may not disable critical guards.
+  # Re-assert them ON and log loudly; only trusted IRON_DOME_HOME config may
+  # disable a critical guard.
+  if [[ "$config_trusted" != true && "${IRON_DOME_ALLOW_REPO_OVERRIDE:-0}" != "1" ]]; then
+    local _cg
+    for _cg in "${IRON_DOME_CRITICAL_GUARDS[@]}"; do
+      if [[ "${IRON_DOME_GUARD_ENABLED[$_cg]:-true}" == "false" ]]; then
+        echo "Iron Dome: SECURITY — in-repo config tried to disable critical guard '$_cg'; ignored (only trusted IRON_DOME_HOME config may)." >&2
+        IRON_DOME_GUARD_ENABLED[$_cg]=true
+      fi
+    done
+  fi
+
   # Load per-repo override (.iron-dome.yml)
+  # SEC #2761 — disabled_patterns / additional_patterns are honored ONLY from a
+  # trusted config source. The override file lives in the scanned tree, so an
+  # attacker could otherwise disable secret patterns by name, or inject a
+  # catastrophic-backtracking grep -P regex (ReDoS / denial-of-detection), on
+  # the same PR that plants the secret.
   local override_file="${repo_root}/.iron-dome.yml"
-  if [[ -f "$override_file" ]]; then
+  if [[ -f "$override_file" && "$config_trusted" != true && "${IRON_DOME_ALLOW_REPO_OVERRIDE:-0}" != "1" ]]; then
+    echo "Iron Dome: SECURITY — ignoring in-repo .iron-dome.yml override (disabled_patterns/additional_patterns) from scanned tree. Set IRON_DOME_ALLOW_REPO_OVERRIDE=1 to opt in (local dev only)." >&2
+  elif [[ -f "$override_file" ]]; then
     local in_disabled=false
     while IFS= read -r line; do
       local trimmed="${line#"${line%%[![:space:]]*}"}"
@@ -456,18 +494,37 @@ _is_whitelisted() {
   local guard="$1"
   local file="$2"
 
+  # SEC #2761 — an in-repo (untrusted) whitelist may not exempt a critical
+  # guard; only a trusted IRON_DOME_HOME config (or explicit local opt-in) can.
+  # Closes the "whitelist everything" bypass committed in the scanned tree.
+  local _cg
+  for _cg in "${IRON_DOME_CRITICAL_GUARDS[@]}"; do
+    if [[ "$_cg" == "$guard" ]]; then
+      if [[ "${IRON_DOME_CONFIG_TRUSTED:-false}" != true && "${IRON_DOME_ALLOW_REPO_OVERRIDE:-0}" != "1" ]]; then
+        return 1
+      fi
+      break
+    fi
+  done
+
   for key in "${!IRON_DOME_WHITELIST[@]}"; do
     local wl_guard="${key%%|||*}"
     local wl_file="${key##*|||}"
 
-    if [[ "$wl_guard" == "$guard" ]] || [[ "$wl_guard" == *"$guard"* ]]; then
-      # Check file glob match
-      if [[ "$file" == $wl_file ]] || [[ "$(basename "$file")" == $wl_file ]]; then
-        local reason="${IRON_DOME_WHITELIST[$key]}"
-        echo "  WHITELISTED: $file ($guard) — $reason"
-        _guard_log "$guard" "whitelisted" "$file: $reason"
-        return 0
-      fi
+    # SEC #2761 — exact guard match only (the old substring match let a
+    # whitelist for one guard leak onto another), and reject overly-broad file
+    # globs that would whitelist the entire tree.
+    [[ "$wl_guard" != "$guard" ]] && continue
+    case "$wl_file" in
+      ''|'*'|'**'|'*/*'|'**/*'|'.'|'./*') continue ;;
+    esac
+
+    # Check file glob match
+    if [[ "$file" == $wl_file ]] || [[ "$(basename "$file")" == $wl_file ]]; then
+      local reason="${IRON_DOME_WHITELIST[$key]}"
+      echo "  WHITELISTED: $file ($guard) — $reason"
+      _guard_log "$guard" "whitelisted" "$file: $reason"
+      return 0
     fi
   done
   return 1

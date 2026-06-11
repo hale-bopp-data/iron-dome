@@ -9,6 +9,12 @@
 
 suite "Per-Repo Override"
 
+# SEC #2761: disabled_patterns / additional_patterns from an in-repo
+# .iron-dome.yml are honored only under the explicit local opt-in (the scanned
+# tree is untrusted in CI). These tests exercise the feature, so opt in here;
+# test_security_2761.sh asserts the bypass is closed WITHOUT the opt-in.
+export IRON_DOME_ALLOW_REPO_OVERRIDE=1
+
 _min_config() { printf 'guards:\n  secrets:\n    enabled: true\n' > iron-dome.yml; }
 GHP="gh""p_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789"   # -> ghp_<36> at runtime only
 
@@ -56,3 +62,6 @@ echo "k = \"$GHP\"" > d.js
 out=$(guard_secrets "d.js" 2>&1 || true)
 assert_contains "default GitHub PAT still detected with additional_patterns present" "GitHub PAT" "$out"
 teardown_sandbox
+
+# SEC #2761: do not leak the opt-in into later test files (sourced in the same shell).
+unset IRON_DOME_ALLOW_REPO_OVERRIDE

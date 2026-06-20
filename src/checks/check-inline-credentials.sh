@@ -87,12 +87,12 @@ if [[ -n "$FACTORY_VCS" ]]; then
   elif command -v node &>/dev/null; then
     while IFS= read -r p; do
       [[ -n "$p" ]] && REPO_PATHS+=("$p")
-    done < <(node -e "
-      const f = require('$FACTORY_VCS');
+    done < <(node -e '
+      const f = require(process.argv[1]);
       for (const v of Object.values(f.repos || {})) {
         if (v.local_path) console.log(v.local_path);
       }
-    " 2>/dev/null)
+    ' "$FACTORY_VCS" 2>/dev/null)
   else
     echo "ERROR: jq or node required to parse factory-vcs.json" >&2
     exit 2

@@ -25,6 +25,8 @@ assert_eq "debt disabled by default" "false" "${IRON_DOME_GUARD_ENABLED[debt]}"
 teardown_sandbox
 
 # --- Custom config: disable secrets ---
+# SEC #2761: disabling a critical guard via in-repo config requires the
+# explicit local opt-in (in CI it is ignored — see test_security_2761.sh).
 setup_sandbox
 reload_core
 cat > iron-dome.yml <<'YAML'
@@ -34,8 +36,10 @@ guards:
   conflict_markers:
     enabled: true
 YAML
+export IRON_DOME_ALLOW_REPO_OVERRIDE=1
 _load_config
-assert_eq "respects secrets: false from YAML" "false" "${IRON_DOME_GUARD_ENABLED[secrets]}"
+unset IRON_DOME_ALLOW_REPO_OVERRIDE
+assert_eq "respects secrets: false from YAML (opt-in)" "false" "${IRON_DOME_GUARD_ENABLED[secrets]}"
 assert_eq "respects conflict_markers: true from YAML" "true" "${IRON_DOME_GUARD_ENABLED[conflict_markers]}"
 teardown_sandbox
 
@@ -66,6 +70,8 @@ teardown_sandbox
 setup_sandbox
 reload_core
 printf "guards:\r\n  secrets:\r\n    enabled: false\r\n" > iron-dome.yml
+export IRON_DOME_ALLOW_REPO_OVERRIDE=1  # SEC #2761: secrets is a critical guard
 _load_config
+unset IRON_DOME_ALLOW_REPO_OVERRIDE
 assert_eq "handles CRLF in config file" "false" "${IRON_DOME_GUARD_ENABLED[secrets]}"
 teardown_sandbox
